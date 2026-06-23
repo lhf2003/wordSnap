@@ -4,6 +4,14 @@ import { WordService } from '../service/WordService';
 import { AppStore } from '../store/AppStore';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
+import { TimeUtils } from '../utils/TimeUtils';
+
+interface MarginOption {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+}
 
 @Entry
 @Component
@@ -17,6 +25,14 @@ struct Index {
   @State errorMessage: string = '';
 
   async aboutToAppear() {
+    await this.initialize();
+  }
+
+  async onPageShow() {
+    await this.loadData();
+  }
+
+  private async initialize(): Promise<void> {
     try {
       const context = this.getUIContext().getHostContext();
       if (context === undefined) {
@@ -62,70 +78,62 @@ struct Index {
 
   private greetingText(): string {
     const hour = new Date().getHours();
-    let prefix = '早上好';
+    let prefix = 'Morning';
     if (hour >= 12 && hour < 18) {
-      prefix = '下午好';
+      prefix = 'Afternoon';
     } else if (hour >= 18) {
-      prefix = '晚上好';
+      prefix = 'Evening';
     }
-    return `${prefix}，学习者`;
+    return `${prefix}, Alex`;
   }
 
-  private dailyGoal(): number {
-    return AppStore.getInstance().userProfile.dailyNewWordGoal;
+  @Builder
+  MicButton() {
+    Button() {
+      Column() {
+        Row()
+          .width(6)
+          .height(10)
+          .backgroundColor(DesignTokens.textPrimary)
+          .borderRadius(3)
+        Row()
+          .width(12)
+          .height(6)
+          .backgroundColor(DesignTokens.textPrimary)
+          .borderRadius({ topLeft: 6, topRight: 6 })
+          .margin({ top: -3 })
+      }
+      .width(24)
+      .height(24)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+    }
+    .width(48)
+    .height(48)
+    .backgroundColor(Color.Transparent)
+    .systemMaterial(DesignTokens.materialRegular)
+    .borderRadius(DesignTokens.radiusFull)
+    .onClick(() => this.navigateToCapture())
   }
 
   @Builder
   Header() {
     Row() {
-      Column() {
-        Text(this.greetingText())
-          .fontSize(DesignTokens.font24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(DesignTokens.textPrimary)
-        Text(`今日目标 ${this.todayCount}/${this.dailyGoal()}`)
-          .fontSize(DesignTokens.font14)
-          .fontColor(DesignTokens.textSecondary)
-          .margin({ top: 4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
+      Text(this.greetingText())
+        .fontSize(DesignTokens.font24)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(DesignTokens.textPrimary)
+        .layoutWeight(1)
 
-      Button() {
-        Row() {
-          Row()
-            .width(14)
-            .height(2)
-            .backgroundColor(Color.White)
-            .borderRadius(1)
-          Row()
-            .width(10)
-            .height(2)
-            .backgroundColor(Color.White)
-            .borderRadius(1)
-        }
-        .width(20)
-        .height(20)
-        .justifyContent(FlexAlign.SpaceEvenly)
-        .direction(Direction.Ltr)
-        .alignItems(VerticalAlign.Center)
-      }
-      .width(48)
-      .height(48)
-      .backgroundColor(Color.Transparent)
-      .systemMaterial(DesignTokens.materialRegular)
-      .borderRadius(DesignTokens.radiusFull)
-      .accessibilityText('快速记录')
-      .accessibilityDescription('进入快速记录页面')
-      .onClick(() => this.navigateToCapture())
+      this.MicButton()
     }
     .width('100%')
     .padding(DesignTokens.spacing16)
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
-  StatCard(label: string, value: string, color: string,
-    margin?: { top?: number; bottom?: number; left?: number; right?: number }) {
+  StatCard(label: string, value: string, color: string, margin?: MarginOption) {
     Column() {
       Text(value)
         .fontSize(DesignTokens.font28)
@@ -133,27 +141,74 @@ struct Index {
         .fontColor(color)
       Text(label)
         .fontSize(DesignTokens.font12)
+        .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.textSecondary)
         .margin({ top: 4 })
     }
     .layoutWeight(1)
-    .margin(margin ?? {})
+    .margin(margin)
     .padding(DesignTokens.spacing16)
-    .borderRadius(DesignTokens.radius20)
+    .borderRadius(DesignTokens.radius24)
     .backgroundColor(Color.Transparent)
-    .systemMaterial(DesignTokens.materialThin)
+    .systemMaterial(DesignTokens.materialGlowPreset)
     .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
-  QuickActionCard() {
+  StatsRow() {
+    Row() {
+      this.StatCard('TODAY', this.todayCount.toString(), DesignTokens.success,
+        { right: DesignTokens.spacing8 })
+      this.StatCard('TOTAL', this.totalCount.toString(), DesignTokens.primary,
+        { left: DesignTokens.spacing8, right: DesignTokens.spacing8 })
+      this.StatCard('REVIEW', this.reviewCount.toString(), DesignTokens.warning,
+        { left: DesignTokens.spacing8 })
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.SpaceBetween)
+    .padding({ top: DesignTokens.spacing8, bottom: DesignTokens.spacing16 })
+  }
+
+  @Builder
+  PlusButton() {
+    Button() {
+      Row() {
+        Row()
+          .width(16)
+          .height(2)
+          .backgroundColor(Color.White)
+          .borderRadius(1)
+        Row()
+          .width(2)
+          .height(16)
+          .backgroundColor(Color.White)
+          .borderRadius(1)
+      }
+      .width(24)
+      .height(24)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+    }
+    .width(56)
+    .height(56)
+    .backgroundColor(DesignTokens.primary)
+    .borderRadius(DesignTokens.radiusFull)
+    .shadow({
+      radius: 12,
+      color: DesignTokens.shadow,
+      offsetY: 4
+    })
+  }
+
+  @Builder
+  CaptureMomentCard() {
     Row() {
       Column() {
-        Text('快速记录')
+        Text('Capture Moment')
           .fontSize(DesignTokens.font18)
           .fontWeight(FontWeight.Bold)
           .fontColor(DesignTokens.textPrimary)
-        Text('双击智控键或点击开始')
+        Text('What did you see today?')
           .fontSize(DesignTokens.font12)
           .fontColor(DesignTokens.textSecondary)
           .margin({ top: 4 })
@@ -161,29 +216,7 @@ struct Index {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Button() {
-        Row() {
-          Row()
-            .width(16)
-            .height(2)
-            .backgroundColor(Color.White)
-            .borderRadius(1)
-          Row()
-            .width(2)
-            .height(16)
-            .backgroundColor(Color.White)
-            .borderRadius(1)
-            .position({ x: 7, y: -7 })
-        }
-        .width(24)
-        .height(24)
-        .justifyContent(FlexAlign.Center)
-      }
-      .width(56)
-      .height(56)
-      .backgroundColor(Color.Transparent)
-      .systemMaterial(DesignTokens.materialRegular)
-      .borderRadius(DesignTokens.radiusFull)
+      this.PlusButton()
     }
     .width('100%')
     .height(96)
@@ -191,14 +224,41 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialRegular)
     .borderRadius(DesignTokens.radius24)
-    .accessibilityText('快速记录')
-    .accessibilityDescription('进入快速记录页面，双击智控键也可唤起')
     .stateStyles({
       pressed: {
         .opacity(0.92)
       }
     })
     .onClick(() => this.navigateToCapture())
+  }
+
+  @Builder
+  StatusBadge(word: WordRecord) {
+    if (word.proficiency >= 5) {
+      Text('MASTERED')
+        .fontSize(DesignTokens.font10)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(DesignTokens.success)
+        .backgroundColor('rgba(52, 211, 153, 0.12)')
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .borderRadius(DesignTokens.radiusFull)
+    } else if (word.proficiency < 3) {
+      Text('REVIEW')
+        .fontSize(DesignTokens.font10)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(DesignTokens.warning)
+        .backgroundColor('rgba(251, 191, 36, 0.12)')
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .borderRadius(DesignTokens.radiusFull)
+    } else {
+      Text('LEARNING')
+        .fontSize(DesignTokens.font10)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(DesignTokens.primary)
+        .backgroundColor('rgba(108, 122, 252, 0.12)')
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .borderRadius(DesignTokens.radiusFull)
+    }
   }
 
   @Builder
@@ -209,38 +269,84 @@ struct Index {
           .fontSize(DesignTokens.font18)
           .fontWeight(FontWeight.Medium)
           .fontColor(DesignTokens.textPrimary)
-        Text(word.translation.join('；'))
+        Text(word.exampleSentence ?? '—')
           .fontSize(DesignTokens.font14)
           .fontColor(DesignTokens.textSecondary)
           .margin({ top: 4 })
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(word.translation.length > 0 ? word.translation.join('；') : '暂无释义')
+          .fontSize(DesignTokens.font12)
+          .fontColor(DesignTokens.textTertiary)
+          .margin({ top: 2 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(TimeUtils.formatRelativeTime(word.createdAt))
+          .fontSize(DesignTokens.font10)
+          .fontColor(DesignTokens.textTertiary)
+          .margin({ top: 6 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      if (word.proficiency > 0) {
-        Text(`掌握度 ${word.proficiency}/5`)
-          .fontSize(DesignTokens.font12)
-          .fontColor(DesignTokens.success)
-          .backgroundColor('rgba(52, 211, 153, 0.12)')
-          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .borderRadius(DesignTokens.radiusFull)
-      }
+      this.StatusBadge(word)
     }
     .width('100%')
     .padding(DesignTokens.spacing16)
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialThin)
     .borderRadius(DesignTokens.radius20)
-    .margin({ bottom: DesignTokens.spacing12 })
-    .accessibilityText(word.word)
-    .accessibilityDescription(`中文释义：${word.translation.join('，')}`)
     .stateStyles({
       pressed: {
         .opacity(0.92)
       }
     })
+  }
+
+  @Builder
+  SectionHeader() {
+    Row() {
+      Text('Recent Captures')
+        .fontSize(DesignTokens.font18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(DesignTokens.textPrimary)
+        .layoutWeight(1)
+      Text('VIEW ALL')
+        .fontSize(DesignTokens.font12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(DesignTokens.primary)
+        .onClick(() => this.navigateToCapture())
+    }
+    .width('100%')
+    .margin({ bottom: DesignTokens.spacing12 })
+  }
+
+  @Builder
+  TopContent() {
+    Column() {
+      this.StatsRow()
+
+      Column() {
+        this.CaptureMomentCard()
+      }
+      .width('100%')
+      .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16, bottom: DesignTokens.spacing16 })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  SectionHeaderItem() {
+    Column() {
+      this.SectionHeader()
+    }
+    .width('100%')
+    .padding(DesignTokens.spacing16)
+  }
+
+  @Builder
+  ListFooter() {
+    Blank().height(96)
   }
 
   @Builder
@@ -276,7 +382,7 @@ struct Index {
         .fontSize(DesignTokens.font16)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.textSecondary)
-      Text('点上方快速记录，把看到的世界变成英语吧')
+      Text('点击 Capture Moment，把看到的世界变成英语吧')
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .margin({ top: 8 })
@@ -287,76 +393,73 @@ struct Index {
     .alignItems(HorizontalAlign.Center)
   }
 
+  @Builder
+  LoadingState() {
+    Column() {
+      LoadingProgress()
+        .width(40)
+        .height(40)
+        .color(DesignTokens.primary)
+        .margin({ top: 40 })
+    }
+    .width('100%')
+    .padding({ top: 40, bottom: 40 })
+    .alignItems(HorizontalAlign.Center)
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
         this.Header()
 
-        Scroll() {
-          Column() {
-            // 统计卡片
-            Row() {
-              this.StatCard('今日新词', this.todayCount.toString(), DesignTokens.success,
-                { right: DesignTokens.spacing6 })
-              this.StatCard('总词汇量', this.totalCount.toString(), DesignTokens.primary,
-                { left: DesignTokens.spacing6, right: DesignTokens.spacing6 })
-              this.StatCard('待复习', this.reviewCount.toString(), DesignTokens.warning,
-                { left: DesignTokens.spacing6 })
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-            .padding({ top: DesignTokens.spacing16, bottom: DesignTokens.spacing16 })
-
-            Column() {
-              this.QuickActionCard()
-            }
-            .width('100%')
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16, bottom: DesignTokens.spacing16 })
-
-            // 今日记录
-            Column() {
-              Row() {
-                Text('今日记录')
-                  .fontSize(DesignTokens.font18)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(DesignTokens.textPrimary)
-                  .layoutWeight(1)
-                Text(`${this.wordList.length} 条`)
-                  .fontSize(DesignTokens.font12)
-                  .fontColor(DesignTokens.textSecondary)
-              }
-              .width('100%')
-              .margin({ bottom: DesignTokens.spacing12 })
-
-              if (this.isLoading) {
-                LoadingProgress()
-                  .width(40)
-                  .height(40)
-                  .color(DesignTokens.primary)
-                  .margin({ top: 40 })
-              } else if (this.errorMessage.length > 0) {
-                this.ErrorState()
-              } else if (this.wordList.length === 0) {
-                this.EmptyState()
-              } else {
-                ForEach(this.wordList, (word: WordRecord) => {
-                  this.WordCard(word)
-                }, (word: WordRecord) => word.id)
-              }
-            }
-            .width('100%')
-            .padding(DesignTokens.spacing16)
-            .backgroundColor(DesignTokens.bgCard)
-            .borderRadius({ topLeft: DesignTokens.radius24, topRight: DesignTokens.radius24 })
-            .layoutWeight(1)
+        List() {
+          ListItem() {
+            this.TopContent()
           }
-          .width('100%')
+          .backgroundColor(DesignTokens.bgBase)
+
+          ListItem() {
+            this.SectionHeaderItem()
+          }
+          .backgroundColor(DesignTokens.bgCard)
+          .borderRadius({ topLeft: DesignTokens.radius24, topRight: DesignTokens.radius24 })
+
+          if (this.isLoading) {
+            ListItem() {
+              this.LoadingState()
+            }
+            .backgroundColor(DesignTokens.bgCard)
+          } else if (this.errorMessage.length > 0) {
+            ListItem() {
+              this.ErrorState()
+            }
+            .backgroundColor(DesignTokens.bgCard)
+          } else if (this.wordList.length === 0) {
+            ListItem() {
+              this.EmptyState()
+            }
+            .backgroundColor(DesignTokens.bgCard)
+          } else {
+            ForEach(this.wordList, (word: WordRecord) => {
+              ListItem() {
+                this.WordCard(word)
+              }
+              .backgroundColor(DesignTokens.bgCard)
+              .margin({ bottom: DesignTokens.spacing12 })
+            }, (word: WordRecord) => word.id)
+          }
+
+          ListItem() {
+            this.ListFooter()
+          }
+          .backgroundColor(DesignTokens.bgCard)
         }
         .width('100%')
         .layoutWeight(1)
+        .backgroundColor(DesignTokens.bgCard)
         .scrollBar(BarState.Off)
-
-        Blank().height(80)
+        .listDirection(Axis.Vertical)
+        .edgeEffect(EdgeEffect.None)
       }
       .width('100%')
       .height('100%')

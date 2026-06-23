@@ -28,7 +28,7 @@ export class DesignTokens {
   // Immersive light-sense colors (used with materialColor, must be translucent)
   static readonly materialPrimaryTint: string = 'rgba(165, 180, 255, 0.18)';
   static readonly materialSurfaceTint: string = 'rgba(255, 255, 255, 0.35)';
-  static readonly materialGlow: string = 'rgba(165, 180, 255, 0.30)';
+  static readonly materialGlow: ResourceColor = 'rgba(165, 180, 255, 0.30)';
 
   // Spacing (4dp/8dp rhythm)
   static readonly spacing4: number = 4;
@@ -49,6 +49,7 @@ export class DesignTokens {
   static readonly radiusFull: number = 9999;
 
   // Typography scale
+  static readonly font10: number = 10;
   static readonly font12: number = 12;
   static readonly font14: number = 14;
   static readonly font16: number = 16;
@@ -84,5 +85,12 @@ export class DesignTokens {
     style: uiMaterial.ImmersiveStyle.THICK,
     applyShadow: true,
     interactive: true
+  });
+
+  static readonly materialGlowPreset: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
+    style: uiMaterial.ImmersiveStyle.THIN,
+    applyShadow: true,
+    interactive: true,
+    lightEffect: { color: DesignTokens.materialGlow }
   });
 }

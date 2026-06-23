@@ -1,8 +1,7 @@
-import { uiMaterial } from '@kit.ArkUI';
+import { router, uiMaterial } from '@kit.ArkUI';
 import { DesignTokens } from './DesignTokens';
 
 export interface NavItem {
-  label: string;
   page: string;
 }
 
@@ -10,10 +9,10 @@ export interface NavItem {
 export struct BottomNav {
   @Prop activeIndex: number = 0;
   private readonly items: NavItem[] = [
-    { label: '首页', page: 'pages/Index' },
-    { label: '记录', page: 'pages/QuickCapturePage' },
-    { label: '词库', page: 'pages/LibraryPage' },
-    { label: '我的', page: 'pages/ProfilePage' }
+    { page: 'pages/Index' },
+    { page: 'pages/QuickCapturePage' },
+    { page: 'pages/QuickCapturePage' },
+    { page: 'pages/QuickCapturePage' }
   ];
 
   private onItemTap(index: number): void {
@@ -21,11 +20,7 @@ export struct BottomNav {
       return;
     }
     const target = this.items[index].page;
-    import('@kit.ArkUI').then((m) => {
-      m.router.replaceUrl({ url: target });
-    }).catch((err: Error) => {
-      console.error('BottomNav router import failed: ' + err.message);
-    });
+    router.replaceUrl({ url: target });
   }
 
   @Builder
@@ -33,14 +28,14 @@ export struct BottomNav {
     Column() {
       Row()
         .width(20)
-        .height(16)
+        .height(14)
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(2)
+        .borderRadius({ topLeft: 3, topRight: 3 })
       Row()
         .width(8)
         .height(6)
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .margin({ top: -14 })
+        .margin({ top: -12 })
     }
     .width(24)
     .height(24)
@@ -48,59 +43,66 @@ export struct BottomNav {
   }
 
   @Builder
-  RecordIcon(active: boolean) {
-    Row() {
+  NotesIcon(active: boolean) {
+    Column() {
+      Row()
+        .width(18)
+        .height(2)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(1)
       Row()
         .width(14)
         .height(2)
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(1)
+        .margin({ top: 5 })
       Row()
-        .width(10)
+        .width(18)
         .height(2)
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-      Row()
-        .width(14)
-        .height(2)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(1)
+        .margin({ top: 5 })
     }
     .width(24)
     .height(24)
-    .justifyContent(FlexAlign.SpaceEvenly)
-    .alignItems(VerticalAlign.Center)
-    .direction(Direction.Ltr)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
-  LibraryIcon(active: boolean) {
-    Row() {
-      Column() {
-        Row().width(6).height(6).backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary).borderRadius(1)
-        Row().width(6).height(6).backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary).borderRadius(1)
-      }.justifyContent(FlexAlign.SpaceEvenly).height(16)
-      Column() {
-        Row().width(6).height(6).backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary).borderRadius(1)
-        Row().width(6).height(6).backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary).borderRadius(1)
-      }.justifyContent(FlexAlign.SpaceEvenly).height(16)
+  InfoIcon(active: boolean) {
+    Column() {
+      Row()
+        .width(4)
+        .height(4)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(2)
+      Row()
+        .width(4)
+        .height(10)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(2)
+        .margin({ top: 3 })
     }
     .width(24)
     .height(24)
-    .justifyContent(FlexAlign.SpaceEvenly)
-    .alignItems(VerticalAlign.Center)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
   ProfileIcon(active: boolean) {
     Column() {
       Row()
-        .width(8)
+        .width(9)
+        .height(9)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(4.5)
+      Row()
+        .width(18)
         .height(8)
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(4)
-      Row()
-        .width(16)
-        .height(7)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius({ topLeft: 8, topRight: 8 })
+        .borderRadius({ topLeft: 9, topRight: 9 })
         .margin({ top: 2 })
     }
     .width(24)
@@ -113,9 +115,9 @@ export struct BottomNav {
     if (index === 0) {
       this.HomeIcon(active)
     } else if (index === 1) {
-      this.RecordIcon(active)
+      this.NotesIcon(active)
     } else if (index === 2) {
-      this.LibraryIcon(active)
+      this.InfoIcon(active)
     } else {
       this.ProfileIcon(active)
     }
@@ -126,22 +128,17 @@ export struct BottomNav {
       ForEach(this.items, (item: NavItem, index: number) => {
         Column() {
           this.NavIcon(index, index === this.activeIndex)
-          Text(item.label)
-            .fontSize(DesignTokens.font12)
-            .fontColor(index === this.activeIndex ? DesignTokens.primary : DesignTokens.textSecondary)
-            .fontWeight(index === this.activeIndex ? FontWeight.Medium : FontWeight.Normal)
-            .margin({ top: 4 })
         }
         .layoutWeight(1)
         .height(56)
         .justifyContent(FlexAlign.Center)
         .onClick(() => this.onItemTap(index))
-      }, (item: NavItem) => item.label)
+      }, (item: NavItem, index: number) => index.toString())
     }
-    .width('92%')
+    .width('84%')
     .height(64)
-    .padding({ top: 4, bottom: 8 })
-    .margin({ bottom: 12 })
+    .padding({ left: 12, right: 12 })
+    .margin({ bottom: 16 })
     .borderRadius(DesignTokens.radiusFull)
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialUltraThin)
