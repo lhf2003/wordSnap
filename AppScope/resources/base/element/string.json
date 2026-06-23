@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "英语学习助手"
+    },
+    {
+      "name": "app_desc",
+      "value": "基于 HarmonyOS 的智能英语学习助手"
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "title": "Design System: 英语学习助手",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "柔靛蓝",
+        "canonical": "#6C7AFC",
+        "tonalRamp": ["#1A2344", "#2E3B7A", "#4F5FDB", "#6C7AFC", "#A5B4FF", "#C8D2FF", "#E3E8FF", "#F4F6FF"]
+      },
+      "primary-light": {
+        "role": "primary",
+        "displayName": "浅靛蓝",
+        "canonical": "#A5B4FF",
+        "tonalRamp": ["#1A2344", "#2E3B7A", "#4F5FDB", "#6C7AFC", "#A5B4FF", "#C8D2FF", "#E3E8FF", "#F4F6FF"]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "深靛蓝",
+        "canonical": "#4F5FDB",
+        "tonalRamp": ["#1A2344", "#2E3B7A", "#4F5FDB", "#6C7AFC", "#A5B4FF", "#C8D2FF", "#E3E8FF", "#F4F6FF"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "成功绿",
+        "canonical": "#34D399",
+        "tonalRamp": ["#064E3B", "#065F46", "#059669", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5", "#ECFDF5"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "警告黄",
+        "canonical": "#FBBF24",
+        "tonalRamp": ["#78350F", "#92400E", "#B45309", "#FBBF24", "#FCD34D", "#FDE68A", "#FEF3C7", "#FFFBEB"]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "危险红",
+        "canonical": "#FB7185",
+        "tonalRamp": ["#881337", "#9F1239", "#BE123C", "#FB7185", "#FDA4AF", "#FECDD3", "#FFE4E6", "#FFF1F2"]
+      },
+      "background-base": {
+        "role": "neutral",
+        "displayName": "雾蓝灰底",
+        "canonical": "#F0F4F8",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F0F4F8"]
+      },
+      "background-card": {
+        "role": "neutral",
+        "displayName": "纯白卡片",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#FFFFFF"]
+      },
+      "background-input": {
+        "role": "neutral",
+        "displayName": "输入浅灰",
+        "canonical": "#F1F5F9",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F1F5F9"]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "主要文字",
+        "canonical": "#1E293B",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "次要文字",
+        "canonical": "#64748B",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "辅助文字",
+        "canonical": "#94A3B8",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "边框",
+        "canonical": "#E2E8F0",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "首页问候语与每屏唯一大标题。"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "页面级标题与章节头。"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "卡片标题、单词词条、快速记录标题。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "输入文字、释义与普通说明。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "底部导航、统计标签、元数据与提示。"
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "统计卡片中的大数字。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-indigo",
+        "value": "0 4px 24px rgba(108, 122, 252, 0.10)",
+        "purpose": "用于光感材质边缘的微弱靛蓝染色，不作为主要深度。"
+      },
+      {
+        "name": "ambient-slate",
+        "value": "0 4px 24px rgba(15, 23, 42, 0.06)",
+        "purpose": "中性微弱底色提升，仅在需要极柔和分隔时使用。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "默认状态过渡，如标签选中、按钮反馈。"
+      },
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "页面元素进入或重要状态变化时的平滑减速。"
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Header Button",
+      "kind": "button",
+      "refersTo": "header-button",
+      "description": "顶部圆形操作按钮，48px，REGULAR 材质。",
+      "html": "<button class=\"ds-header-button\" aria-label=\"快速记录\"><span class=\"ds-header-button-icon\"></span></button>",
+      "css": ".ds-header-button { width: 48px; height: 48px; border-radius: 9999px; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: none; display: grid; place-items: center; cursor: pointer; transition: transform 0.2s cubic-bezier(0.4,0,0.2,1); } .ds-header-button:hover { transform: scale(1.04); } .ds-header-button-icon { width: 20px; height: 20px; position: relative; } .ds-header-button-icon::before, .ds-header-button-icon::after { content: ''; position: absolute; background: #1E293B; border-radius: 1px; left: 50%; transform: translateX(-50%); } .ds-header-button-icon::before { width: 14px; height: 2px; top: 7px; } .ds-header-button-icon::after { width: 10px; height: 2px; top: 12px; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "统计卡片，20px 圆角，中心对齐，THIN 材质。",
+      "html": "<div class=\"ds-stat-card\"><div class=\"ds-stat-value\">12</div><div class=\"ds-stat-label\">今日新词</div></div>",
+      "css": ".ds-stat-card { width: 100px; padding: 16px; border-radius: 20px; background: rgba(255,255,255,0.72); backdrop-filter: blur(8px); text-align: center; } .ds-stat-value { font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 28px; font-weight: 700; line-height: 1.1; color: #34D399; } .ds-stat-label { margin-top: 4px; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 12px; color: #64748B; }"
+    },
+    {
+      "name": "Quick Action Card",
+      "kind": "card",
+      "refersTo": "quick-action-card",
+      "description": "快速操作卡片，24px 圆角，96px 高度，REGULAR 材质。",
+      "html": "<div class=\"ds-quick-action-card\"><div class=\"ds-quick-action-text\"><div class=\"ds-quick-action-title\">快速记录</div><div class=\"ds-quick-action-subtitle\">双击智控键或点击开始</div></div><button class=\"ds-quick-action-button\" aria-label=\"添加\"><span class=\"ds-quick-action-plus\"></span></button></div>",
+      "css": ".ds-quick-action-card { display: flex; align-items: center; justify-content: space-between; height: 96px; padding: 16px; border-radius: 24px; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); cursor: pointer; transition: transform 0.2s cubic-bezier(0.4,0,0.2,1); } .ds-quick-action-card:hover { transform: translateY(-2px); } .ds-quick-action-title { font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 18px; font-weight: 700; color: #1E293B; } .ds-quick-action-subtitle { margin-top: 4px; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 12px; color: #64748B; } .ds-quick-action-button { width: 56px; height: 56px; border-radius: 9999px; background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border: none; display: grid; place-items: center; cursor: pointer; } .ds-quick-action-plus { width: 24px; height: 24px; position: relative; } .ds-quick-action-plus::before, .ds-quick-action-plus::after { content: ''; position: absolute; background: #1E293B; border-radius: 1px; } .ds-quick-action-plus::before { width: 16px; height: 2px; top: 11px; left: 4px; } .ds-quick-action-plus::after { width: 2px; height: 16px; top: 4px; left: 11px; }"
+    },
+    {
+      "name": "Word Card",
+      "kind": "card",
+      "refersTo": "word-card",
+      "description": "词条卡片，20px 圆角，THIN 材质，可附带掌握度标签。",
+      "html": "<div class=\"ds-word-card\"><div class=\"ds-word-main\"><div class=\"ds-word-term\">serendipity</div><div class=\"ds-word-translation\">意外发现珍宝的运气；机缘巧合</div></div><span class=\"ds-word-badge\">掌握度 2/5</span></div>",
+      "css": ".ds-word-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 20px; background: rgba(255,255,255,0.72); backdrop-filter: blur(8px); } .ds-word-term { font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 18px; font-weight: 500; color: #1E293B; } .ds-word-translation { margin-top: 4px; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 14px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; } .ds-word-badge { padding: 4px 8px; border-radius: 9999px; background: rgba(52,211,153,0.12); font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 12px; color: #34D399; white-space: nowrap; }"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "底部胶囊导航栏，ULTRA-THIN 材质。",
+      "html": "<nav class=\"ds-bottom-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\"><span class=\"ds-nav-icon\"></span><span class=\"ds-nav-label\">首页</span></a><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-nav-icon\"></span><span class=\"ds-nav-label\">记录</span></a><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-nav-icon\"></span><span class=\"ds-nav-label\">词库</span></a><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-nav-icon\"></span><span class=\"ds-nav-label\">我的</span></a></nav>",
+      "css": ".ds-bottom-nav { display: flex; justify-content: space-around; align-items: center; width: 92%; height: 64px; margin: 0 auto 12px; padding: 4px 0 8px; border-radius: 9999px; background: rgba(255,255,255,0.62); backdrop-filter: blur(16px); } .ds-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 56px; min-width: 56px; text-decoration: none; } .ds-nav-icon { width: 24px; height: 24px; border-radius: 4px; background: #94A3B8; } .ds-nav-item.ds-nav-active .ds-nav-icon { background: #6C7AFC; } .ds-nav-label { margin-top: 4px; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 12px; color: #64748B; } .ds-nav-item.ds-nav-active .ds-nav-label { color: #6C7AFC; font-weight: 500; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "分类标签，全圆角，可选中切换。",
+      "html": "<span class=\"ds-tag\">日常</span><span class=\"ds-tag ds-tag-selected\">食物</span>",
+      "css": ".ds-tag { display: inline-block; padding: 10px 16px; border-radius: 9999px; background: #F1F5F9; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 16px; color: #64748B; cursor: pointer; transition: background 0.2s cubic-bezier(0.4,0,0.2,1), color 0.2s cubic-bezier(0.4,0,0.2,1); } .ds-tag-selected { background: #34D399; color: #FFFFFF; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "输入框，56px 高度，8px 圆角，浅灰背景。",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"输入英语单词或短语...\">",
+      "css": ".ds-input { width: 100%; height: 56px; padding: 0 16px; border-radius: 8px; border: none; background: #F1F5F9; font-family: 'HarmonyOS Sans', system-ui, sans-serif; font-size: 16px; color: #1E293B; outline: none; } .ds-input::placeholder { color: #94A3B8; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "身旁伙伴",
+    "overview": "这套系统像一位温和的学习伙伴：不施压、不考核，只在用户看见世界时递上一支笔，把“这个用英语怎么说”变成“记下了”。视觉上追求“柔光纸面”——不是冰冷的纯白工作区，也不是暖 beige 的奶油风，而是被柔和天光轻微照亮的雾蓝灰纸面，主色靛蓝像伙伴手中那支不起眼的记号笔，只在需要指引时出现。界面密度偏宽松，给初学者足够的呼吸感；圆角温润如鹅卵石，点击反馈柔和，减少学习焦虑。所有深度与层级都优先交给 HarmonyOS API 26 的沉浸光感材质处理，而不是堆叠阴影或厚重边框。",
+    "keyCharacteristics": [
+      "原生鸿蒙视觉语言，深度融合 API 26 光感材质。",
+      "主色稀缺：靛蓝只出现在行动点与关键统计上。",
+      "圆角大、间距宽、层级轻，整体触感温润不锋利。",
+      "文字层级清晰，初学者能快速区分“今天学了什么”和“接下来该做什么”。"
+    ],
+    "rules": [
+      {
+        "name": "The 柔光纸面 Rule",
+        "body": "背景必须是带轻微冷蓝调的雾灰，禁止暖 beige、奶油色或纯白冷漠工作区。温暖应来自品牌语气与正向反馈，而不是背景色相。",
+        "section": "colors"
+      },
+      {
+        "name": "The 10% Accent Rule",
+        "body": "靛蓝在任何屏幕上占比不超过 10%。它的任务是引导视线，而不是填满界面。如果某一屏靛蓝过多，说明行动点过于密集，需要重新梳理流程。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Greeting Rule",
+        "body": "Display 尺寸（24px 加粗）每屏只出现一次，用于向用户打招呼或标识当前页面。避免多处使用 Display 造成视觉争抢。",
+        "section": "typography"
+      },
+      {
+        "name": "The Light-First Rule",
+        "body": "深度必须首先通过系统材质实现；禁止把深色投影当作主要层级手段。如果一张卡片看起来像“贴了一层灰色底”，说明材质使用失败。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "优先使用 HarmonyOS 系统材质（materialThin / materialRegular / materialUltraThin）表达卡片和导航层级。",
+      "使用 4dp / 8dp 网格：间距 4、8、12、16、20、24、32、48。",
+      "让靛蓝主色保持稀缺——行动点、选中态、关键统计即可。",
+      "为掌握度、保存成功、待复习等状态同时提供文字/图标与颜色提示。",
+      "尊重系统减弱动效设置，核心状态变化不依赖动画才能被感知。"
+    ],
+    "donts": [
+      "模仿 iOS 极简风：避免纯白背景 + 细线分割 + 无情感反馈的冷淡界面。",
+      "使用暖 beige / 奶油色作为页面背景。",
+      "用深色大投影作为卡片主要层级手段；深度应来自光感材质。",
+      "只依赖颜色传达状态（例如仅用绿色表示已保存，而不显示“已保存”文字或图标）。",
+      "在多个位置重复使用 Display 尺寸（24px 加粗），每屏保留一个视觉焦点。"
+    ]
+  }
+}

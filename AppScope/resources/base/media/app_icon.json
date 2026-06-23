@@ -1,0 +1,11 @@
+{
+  "image": {
+    "name": "app_icon",
+    "pixelMap": [
+      {
+        "src": "$media:icon",
+        "scale": 1.0
+      }
+    ]
+  }
+}
