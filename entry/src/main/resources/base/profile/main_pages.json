@@ -1,6 +1,11 @@
 {
   "src": [
     "pages/Index",
-    "pages/QuickCapturePage"
+    "pages/QuickCapturePage",
+    "pages/LibraryPage",
+    "pages/WordDetailPage",
+    "pages/LoginPage",
+    "pages/ProfilePage",
+    "pages/DailyReportPage"
   ]
 }

@@ -30,6 +30,10 @@ export interface WordRecord {
   createdAt: number;
   lastReviewedAt?: number;
   imageUri?: string;
+  definition?: string;
+  examples?: ExampleSentence[];
+  isArchived?: boolean;
+  isFavorite?: boolean;
 }
 
 export interface LearningLog {
@@ -43,6 +47,7 @@ export interface LearningLog {
 }
 
 export interface DailyReport {
+  id: string;
   date: string;
   generatedAt: number;
   newWordsCount: number;
@@ -51,14 +56,41 @@ export interface DailyReport {
   accuracyRate: number;
   streakDays: number;
   studyMinutes: number;
+  highFrequencyWords: string[];
   reviewWords: string[];
   exercises: Exercise[];
   suggestion: string;
   status: ReportStatus;
 }
 
+export interface AuthToken {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+}
+
+export interface HuaweiUserInfo {
+  openId: string;
+  unionId?: string;
+  nickname?: string;
+  avatarUrl?: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: HuaweiUserInfo;
+}
+
 export interface UserProfile {
   userId: string;
+  openId?: string;
+  unionId?: string;
+  nickname?: string;
+  avatarUrl?: string;
+  isLoggedIn: boolean;
+  authToken?: AuthToken;
   reportReminderTime: string;
   reportEnabled: boolean;
   wearReminderEnabled: boolean;

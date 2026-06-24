@@ -1,6 +1,7 @@
 import { WordRecord, RecordSource, PartOfSpeech, AIWordDetail } from '../model/Types';
 import { Context } from '@kit.AbilityKit';
 import { WordRepository } from '../repository/WordRepository';
+import { IWordRepository } from '../repository/IWordRepository';
 
 export interface AddWordParams {
   word: string;
@@ -20,30 +21,26 @@ interface StatisticsResult {
 }
 
 export class WordService {
-  private wordRepo: WordRepository;
+  private wordRepo: IWordRepository;
 
-  constructor() {
-    this.wordRepo = WordRepository.getInstance();
+  constructor(repo?: IWordRepository) {
+    this.wordRepo = repo ?? WordRepository.getInstance();
   }
 
   async init(context: Context): Promise<void> {
     await this.wordRepo.init(context);
   }
 
-  private static idCounter: number = 0;
-
   async addWord(params: AddWordParams): Promise<WordRecord> {
     const now = Date.now();
-    WordService.idCounter += 1;
-    const counterStr = WordService.idCounter.toString(36);
-    const paddedCounter = counterStr.length >= 4 ? counterStr : '0000'.substring(0, 4 - counterStr.length) + counterStr;
+    const entropy = Math.random().toString(36).substring(2, 6);
 
     const aiDetail = params.aiDetail;
     const translations = aiDetail?.translations ?? params.translation ?? ['暂无释义'];
     const firstPos = aiDetail?.partOfSpeech?.[0];
 
     const wordRecord: WordRecord = {
-      id: 'w-' + now + '-' + paddedCounter,
+      id: 'w-' + now + '-' + entropy,
       word: params.word.trim(),
       translation: translations,
       partOfSpeech: this.normalizePartOfSpeech(firstPos ?? params.partOfSpeech),
@@ -57,7 +54,10 @@ export class WordService {
       reviewCount: 0,
       createdAt: now,
       originalQuery: params.originalQuery,
-      imageUri: params.imageUri
+      imageUri: params.imageUri,
+      examples: aiDetail?.examples ?? [],
+      isArchived: false,
+      isFavorite: false
     };
 
     await this.wordRepo.insert(wordRecord);
@@ -66,6 +66,10 @@ export class WordService {
 
   async getWordById(id: string): Promise<WordRecord | null> {
     return this.wordRepo.findById(id);
+  }
+
+  async getAllWords(): Promise<WordRecord[]> {
+    return this.wordRepo.getAllWords();
   }
 
   async getTodayWords(): Promise<WordRecord[]> {
@@ -86,6 +90,22 @@ export class WordService {
 
   async deleteWord(id: string): Promise<void> {
     await this.wordRepo.delete(id);
+  }
+
+  async toggleFavorite(id: string): Promise<boolean> {
+    const word = await this.wordRepo.findById(id);
+    if (!word) throw new Error('Word not found: ' + id);
+    const next = !word.isFavorite;
+    await this.wordRepo.updateFavorite(id, next);
+    return next;
+  }
+
+  async toggleArchived(id: string): Promise<boolean> {
+    const word = await this.wordRepo.findById(id);
+    if (!word) throw new Error('Word not found: ' + id);
+    const next = !word.isArchived;
+    await this.wordRepo.updateArchived(id, next);
+    return next;
   }
 
   async searchWords(keyword: string): Promise<WordRecord[]> {

@@ -1,6 +1,7 @@
 import { relationalStore } from '@kit.ArkData';
 import { Context } from '@kit.AbilityKit';
-import { WordRecord, PartOfSpeech, RecordSource } from '../model/Types';
+import { WordRecord, PartOfSpeech, RecordSource, ExampleSentence } from '../model/Types';
+import { IWordRepository } from './IWordRepository';
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
   name: 'english_assistant.db',
@@ -24,11 +25,15 @@ const WORD_TABLE_SQL = `
     review_count INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL,
     last_reviewed_at INTEGER,
-    image_uri TEXT
+    image_uri TEXT,
+    definition TEXT,
+    examples TEXT,
+    is_archived INTEGER DEFAULT 0,
+    is_favorite INTEGER DEFAULT 0
   )
 `;
 
-export class WordRepository {
+export class WordRepository implements IWordRepository {
   private static instance: WordRepository;
   private store: relationalStore.RdbStore | null = null;
 
@@ -45,12 +50,34 @@ export class WordRepository {
     }
     this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
     await this.store.executeSql(WORD_TABLE_SQL);
+    await this.migrateWordTable();
     await this.store.executeSql(
       'CREATE INDEX IF NOT EXISTS idx_word_created ON word_records(created_at)'
     );
     await this.store.executeSql(
       'CREATE INDEX IF NOT EXISTS idx_word_proficiency ON word_records(proficiency, last_reviewed_at)'
     );
+  }
+
+  private async migrateWordTable(): Promise<void> {
+    if (!this.store) return;
+    const migrations = [
+      'ALTER TABLE word_records ADD COLUMN definition TEXT',
+      'ALTER TABLE word_records ADD COLUMN examples TEXT',
+      'ALTER TABLE word_records ADD COLUMN is_archived INTEGER DEFAULT 0',
+      'ALTER TABLE word_records ADD COLUMN is_favorite INTEGER DEFAULT 0'
+    ];
+    for (const sql of migrations) {
+      try {
+        await this.store.executeSql(sql);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('duplicate column name') || message.includes('already exists')) {
+          continue;
+        }
+        console.error('Word table migration failed: ' + message);
+      }
+    }
   }
 
   async insert(word: WordRecord): Promise<void> {
@@ -72,7 +99,11 @@ export class WordRepository {
       review_count: word.reviewCount,
       created_at: word.createdAt,
       last_reviewed_at: word.lastReviewedAt ?? 0,
-      image_uri: word.imageUri ?? ''
+      image_uri: word.imageUri ?? '',
+      definition: word.definition ?? '',
+      examples: JSON.stringify(word.examples ?? []),
+      is_archived: word.isArchived ? 1 : 0,
+      is_favorite: word.isFavorite ? 1 : 0
     };
 
     await this.store.insert('word_records', values);
@@ -150,15 +181,15 @@ export class WordRepository {
     const predicates = new relationalStore.RdbPredicates('word_records');
     const resultSet = await this.store.query(predicates, ['*']);
     const words = this.mapResultSet(resultSet);
+    const shuffled = [...words];
 
-    // Fisher-Yates 洗牌算法
-    for (let i = words.length - 1; i > 0; i--) {
+    for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      const temp = words[i];
-      words[i] = words[j];
-      words[j] = temp;
+      const temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
     }
-    return words.slice(0, Math.min(count, words.length));
+    return shuffled.slice(0, Math.min(count, shuffled.length));
   }
 
   async updateProficiency(id: string, newProficiency: number): Promise<void> {
@@ -200,6 +231,28 @@ export class WordRepository {
     await this.store.delete(predicates);
   }
 
+  async updateFavorite(id: string, isFavorite: boolean): Promise<void> {
+    if (!this.store) throw new Error('Repository not initialized');
+
+    const values: relationalStore.ValuesBucket = {
+      is_favorite: isFavorite ? 1 : 0
+    };
+    const predicates = new relationalStore.RdbPredicates('word_records');
+    predicates.equalTo('id', id);
+    await this.store.update(values, predicates);
+  }
+
+  async updateArchived(id: string, isArchived: boolean): Promise<void> {
+    if (!this.store) throw new Error('Repository not initialized');
+
+    const values: relationalStore.ValuesBucket = {
+      is_archived: isArchived ? 1 : 0
+    };
+    const predicates = new relationalStore.RdbPredicates('word_records');
+    predicates.equalTo('id', id);
+    await this.store.update(values, predicates);
+  }
+
   async getTotalCount(): Promise<number> {
     if (!this.store) throw new Error('Repository not initialized');
 
@@ -232,6 +285,31 @@ export class WordRepository {
       for (const item of arr) {
         if (typeof item === 'string') {
           result.push(item);
+        }
+      }
+      return result;
+    }
+    return [];
+  }
+
+  private parseExamples(json: string): ExampleSentence[] {
+    let parsed: Object | null = null;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      return [];
+    }
+    if (parsed instanceof Array) {
+      const arr: Object[] = parsed as Object[];
+      const result: ExampleSentence[] = [];
+      for (const item of arr) {
+        if (item && typeof item === 'object') {
+          const obj = item as Record<string, Object>;
+          const en = obj['en'];
+          const zh = obj['zh'];
+          if (typeof en === 'string' && typeof zh === 'string') {
+            result.push({ en, zh });
+          }
         }
       }
       return result;
@@ -288,7 +366,11 @@ export class WordRepository {
       reviewCount: getLong('review_count'),
       createdAt: getLong('created_at'),
       lastReviewedAt: getOptLong('last_reviewed_at'),
-      imageUri: getOptString('image_uri')
+      imageUri: getOptString('image_uri'),
+      definition: getOptString('definition'),
+      examples: this.parseExamples(getString('examples')),
+      isArchived: getLong('is_archived') === 1,
+      isFavorite: getLong('is_favorite') === 1
     };
   }
 }

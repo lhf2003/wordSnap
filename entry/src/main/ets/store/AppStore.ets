@@ -1,4 +1,4 @@
-import { WordRecord, DailyReport, UserProfile } from '../model/Types';
+import { WordRecord, DailyReport, UserProfile, AuthToken, HuaweiUserInfo } from '../model/Types';
 import { ProfileRepository } from '../repository/ProfileRepository';
 import { Context } from '@kit.AbilityKit';
 
@@ -13,6 +13,7 @@ export class AppStore {
   currentReport: DailyReport | null = null;
   userProfile: UserProfile = {
     userId: 'default',
+    isLoggedIn: false,
     reportReminderTime: '21:00',
     reportEnabled: true,
     wearReminderEnabled: false,
@@ -105,10 +106,63 @@ export class AppStore {
     this.currentReport = report;
   }
 
+  setLoggedInUser(user: HuaweiUserInfo, token: AuthToken): void {
+    const profile = this.userProfile;
+    const updated: UserProfile = {
+      userId: user.openId,
+      openId: user.openId,
+      unionId: user.unionId,
+      nickname: user.nickname,
+      avatarUrl: user.avatarUrl,
+      isLoggedIn: true,
+      authToken: token,
+      reportReminderTime: profile.reportReminderTime,
+      reportEnabled: profile.reportEnabled,
+      wearReminderEnabled: profile.wearReminderEnabled,
+      dailyNewWordGoal: profile.dailyNewWordGoal,
+      dailyReviewGoal: profile.dailyReviewGoal,
+      aiProvider: profile.aiProvider,
+      aiApiKey: profile.aiApiKey,
+      targetLanguage: profile.targetLanguage,
+      autoPronunciation: profile.autoPronunciation,
+      theme: profile.theme,
+      updatedAt: Date.now()
+    };
+    this.userProfile = updated;
+    this.saveProfile();
+  }
+
+  clearUser(): void {
+    const profile = this.userProfile;
+    const updated: UserProfile = {
+      userId: 'default',
+      isLoggedIn: false,
+      reportReminderTime: profile.reportReminderTime,
+      reportEnabled: profile.reportEnabled,
+      wearReminderEnabled: profile.wearReminderEnabled,
+      dailyNewWordGoal: profile.dailyNewWordGoal,
+      dailyReviewGoal: profile.dailyReviewGoal,
+      aiProvider: profile.aiProvider,
+      aiApiKey: profile.aiApiKey,
+      targetLanguage: profile.targetLanguage,
+      autoPronunciation: profile.autoPronunciation,
+      theme: profile.theme,
+      updatedAt: Date.now()
+    };
+    this.userProfile = updated;
+    this.saveProfile();
+  }
+
   updateUserProfile(partial: Partial<UserProfile>): void {
     const profile = this.userProfile;
     const updated: UserProfile = {
       userId: partial.userId ?? profile.userId,
+      openId: partial.openId ?? profile.openId,
+      unionId: partial.unionId ?? profile.unionId,
+      nickname: partial.nickname ?? profile.nickname,
+      avatarUrl: partial.avatarUrl ?? profile.avatarUrl,
+      isLoggedIn: partial.isLoggedIn ?? profile.isLoggedIn,
+      authToken: partial.authToken ?? profile.authToken,
       reportReminderTime: partial.reportReminderTime ?? profile.reportReminderTime,
       reportEnabled: partial.reportEnabled ?? profile.reportEnabled,
       wearReminderEnabled: partial.wearReminderEnabled ?? profile.wearReminderEnabled,

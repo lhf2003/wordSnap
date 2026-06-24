@@ -10,6 +10,14 @@ const STORE_CONFIG: relationalStore.StoreConfig = {
 const PROFILE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS user_profile (
     user_id TEXT PRIMARY KEY,
+    open_id TEXT,
+    union_id TEXT,
+    nickname TEXT,
+    avatar_url TEXT,
+    is_logged_in INTEGER NOT NULL,
+    access_token TEXT,
+    refresh_token TEXT,
+    token_expires_at INTEGER,
     report_reminder_time TEXT NOT NULL,
     report_enabled INTEGER NOT NULL,
     wear_reminder_enabled INTEGER NOT NULL,
@@ -43,6 +51,30 @@ export class ProfileRepository {
     }
     this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
     await this.store.executeSql(PROFILE_TABLE_SQL);
+    await this.migrateV2();
+  }
+
+  private async migrateV2(): Promise<void> {
+    if (this.store === null) {
+      return;
+    }
+    const migrations: string[] = [
+      'ALTER TABLE user_profile ADD COLUMN open_id TEXT',
+      'ALTER TABLE user_profile ADD COLUMN union_id TEXT',
+      'ALTER TABLE user_profile ADD COLUMN nickname TEXT',
+      'ALTER TABLE user_profile ADD COLUMN avatar_url TEXT',
+      'ALTER TABLE user_profile ADD COLUMN is_logged_in INTEGER DEFAULT 0',
+      'ALTER TABLE user_profile ADD COLUMN access_token TEXT',
+      'ALTER TABLE user_profile ADD COLUMN refresh_token TEXT',
+      'ALTER TABLE user_profile ADD COLUMN token_expires_at INTEGER'
+    ];
+    for (const sql of migrations) {
+      try {
+        await this.store.executeSql(sql);
+      } catch (err) {
+        console.info('ProfileRepository migration skipped: ' + (err instanceof Error ? err.message : 'unknown'));
+      }
+    }
   }
 
   async load(context: Context): Promise<UserProfile | null> {
@@ -66,8 +98,23 @@ export class ProfileRepository {
       return value.length > 0 ? value : undefined;
     };
 
+    const isLoggedIn: boolean = getLong('is_logged_in') !== 0;
+    const accessToken: string | undefined = getOptString('access_token');
+    const refreshToken: string | undefined = getOptString('refresh_token');
+    const tokenExpiresAt: number = getLong('token_expires_at');
+
     return {
       userId: getString('user_id'),
+      openId: getOptString('open_id'),
+      unionId: getOptString('union_id'),
+      nickname: getOptString('nickname'),
+      avatarUrl: getOptString('avatar_url'),
+      isLoggedIn: isLoggedIn,
+      authToken: accessToken !== undefined && refreshToken !== undefined && tokenExpiresAt > 0 ? {
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        expiresAt: tokenExpiresAt
+      } : undefined,
       reportReminderTime: getString('report_reminder_time'),
       reportEnabled: getLong('report_enabled') !== 0,
       wearReminderEnabled: getLong('wear_reminder_enabled') !== 0,
@@ -94,6 +141,14 @@ export class ProfileRepository {
 
     const values: relationalStore.ValuesBucket = {
       user_id: profile.userId,
+      open_id: profile.openId ?? '',
+      union_id: profile.unionId ?? '',
+      nickname: profile.nickname ?? '',
+      avatar_url: profile.avatarUrl ?? '',
+      is_logged_in: profile.isLoggedIn ? 1 : 0,
+      access_token: profile.authToken?.accessToken ?? '',
+      refresh_token: profile.authToken?.refreshToken ?? '',
+      token_expires_at: profile.authToken?.expiresAt ?? 0,
       report_reminder_time: profile.reportReminderTime,
       report_enabled: profile.reportEnabled ? 1 : 0,
       wear_reminder_enabled: profile.wearReminderEnabled ? 1 : 0,

@@ -1,4 +1,4 @@
-import { router, uiMaterial } from '@kit.ArkUI';
+import { router } from '@kit.ArkUI';
 import { DesignTokens } from './DesignTokens';
 
 export interface NavItem {
@@ -10,9 +10,9 @@ export struct BottomNav {
   @Prop activeIndex: number = 0;
   private readonly items: NavItem[] = [
     { page: 'pages/Index' },
-    { page: 'pages/QuickCapturePage' },
-    { page: 'pages/QuickCapturePage' },
-    { page: 'pages/QuickCapturePage' }
+    { page: 'pages/LibraryPage' },
+    { page: 'pages/DailyReportPage' },
+    { page: 'pages/ProfilePage' }
   ];
 
   private onItemTap(index: number): void {
@@ -43,30 +43,29 @@ export struct BottomNav {
   }
 
   @Builder
-  NotesIcon(active: boolean) {
+  LibraryIcon(active: boolean) {
     Column() {
-      Row()
-        .width(18)
-        .height(2)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(1)
-      Row()
-        .width(14)
-        .height(2)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(1)
-        .margin({ top: 5 })
-      Row()
-        .width(18)
-        .height(2)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(1)
-        .margin({ top: 5 })
+      Row() {
+        Row()
+          .width(7)
+          .height(16)
+          .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+          .borderRadius({ topLeft: 2, bottomLeft: 2 })
+        Row()
+          .width(7)
+          .height(16)
+          .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+          .borderRadius({ topRight: 2, bottomRight: 2 })
+          .margin({ left: 2 })
+      }
+      .width(16)
+      .height(16)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
     }
     .width(24)
     .height(24)
     .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
@@ -83,6 +82,33 @@ export struct BottomNav {
         .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
         .borderRadius(2)
         .margin({ top: 3 })
+    }
+    .width(24)
+    .height(24)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  ReportIcon(active: boolean) {
+    Column() {
+      Row()
+        .width(14)
+        .height(10)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(2)
+      Row()
+        .width(18)
+        .height(2)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(1)
+        .margin({ top: 4 })
+      Row()
+        .width(14)
+        .height(2)
+        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
+        .borderRadius(1)
+        .margin({ top: 2 })
     }
     .width(24)
     .height(24)
@@ -115,9 +141,9 @@ export struct BottomNav {
     if (index === 0) {
       this.HomeIcon(active)
     } else if (index === 1) {
-      this.NotesIcon(active)
+      this.LibraryIcon(active)
     } else if (index === 2) {
-      this.InfoIcon(active)
+      this.ReportIcon(active)
     } else {
       this.ProfileIcon(active)
     }

@@ -2,6 +2,7 @@ import { router } from '@kit.ArkUI';
 import { WordService, AddWordParams } from '../service/WordService';
 import { AppStore } from '../store/AppStore';
 import { LaunchState } from '../store/LaunchState';
+import { DesignTokens } from '../components/DesignTokens';
 
 const TAG = 'QuickCapturePage';
 const INPUT_ID = 'quickCaptureInput';
@@ -145,8 +146,8 @@ struct QuickCapturePage {
     Column() {
       Row() {
         Text('<')
-          .fontSize(28)
-          .fontColor('#666')
+          .fontSize(DesignTokens.font24)
+          .fontColor(DesignTokens.textSecondary)
           .width(48)
           .height(48)
           .textAlign(TextAlign.Center)
@@ -156,14 +157,15 @@ struct QuickCapturePage {
           })
 
         Text('快速记录')
-          .fontSize(20)
+          .fontSize(DesignTokens.font20)
           .fontWeight(FontWeight.Bold)
+          .fontColor(DesignTokens.textPrimary)
           .layoutWeight(1)
 
         if (this.showSuccess) {
           Text('已保存')
-            .fontSize(14)
-            .fontColor('#4CAF50')
+            .fontSize(DesignTokens.font14)
+            .fontColor(DesignTokens.success)
             .animation({ duration: 300 })
         }
       }
@@ -172,8 +174,8 @@ struct QuickCapturePage {
 
       Column() {
         Text('英语单词 / 短语')
-          .fontSize(16)
-          .fontColor('#333')
+          .fontSize(DesignTokens.font16)
+          .fontColor(DesignTokens.textPrimary)
           .width('100%')
           .margin({ bottom: 8 })
 
@@ -181,9 +183,10 @@ struct QuickCapturePage {
           .id(INPUT_ID)
           .width('100%')
           .height(56)
-          .backgroundColor('#f5f5f5')
-          .borderRadius(8)
-          .fontSize(16)
+          .backgroundColor(DesignTokens.bgInput)
+          .borderRadius(DesignTokens.radius8)
+          .fontSize(DesignTokens.font16)
+          .placeholderColor(DesignTokens.textTertiary)
           .defaultFocus(true)
           .onChange((value: string) => {
             this.wordInput = value;
@@ -196,17 +199,18 @@ struct QuickCapturePage {
 
       Column() {
         Text('中文释义（可选）')
-          .fontSize(16)
-          .fontColor('#333')
+          .fontSize(DesignTokens.font16)
+          .fontColor(DesignTokens.textPrimary)
           .width('100%')
           .margin({ bottom: 8 })
 
         TextInput({ placeholder: '输入中文释义，多个用逗号分隔...', text: this.translationInput })
           .width('100%')
           .height(56)
-          .backgroundColor('#f5f5f5')
-          .borderRadius(8)
-          .fontSize(16)
+          .backgroundColor(DesignTokens.bgInput)
+          .borderRadius(DesignTokens.radius8)
+          .fontSize(DesignTokens.font16)
+          .placeholderColor(DesignTokens.textTertiary)
           .onChange((value: string) => {
             this.translationInput = value;
           })
@@ -218,23 +222,23 @@ struct QuickCapturePage {
 
       Column() {
         Text('分类标签')
-          .fontSize(16)
-          .fontColor('#333')
+          .fontSize(DesignTokens.font16)
+          .fontColor(DesignTokens.textPrimary)
           .width('100%')
           .margin({ bottom: 12 })
 
         Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
           ForEach(this.presetTags, (tag: string) => {
             Text(tag)
-              .fontSize(16)
+              .fontSize(DesignTokens.font16)
               .padding({ left: 16, right: 16, top: 10, bottom: 10 })
               .backgroundColor(
-                this.selectedTags.includes(tag) ? '#4CAF50' : '#f0f0f0'
+                this.selectedTags.includes(tag) ? DesignTokens.success : DesignTokens.bgInput
               )
               .fontColor(
-                this.selectedTags.includes(tag) ? Color.White : '#666'
+                this.selectedTags.includes(tag) ? Color.White : DesignTokens.textSecondary
               )
-              .borderRadius(20)
+              .borderRadius(DesignTokens.radiusFull)
               .margin({ right: 12, bottom: 12 })
               .onClick(() => this.toggleTag(tag))
           }, (tag: string) => tag)
@@ -247,7 +251,7 @@ struct QuickCapturePage {
       Button(this.isSaving ? '保存中...' : '保存')
         .width('90%')
         .height(56)
-        .backgroundColor(this.isSaving ? '#ccc' : '#4CAF50')
+        .backgroundColor(this.isSaving ? DesignTokens.textTertiary : DesignTokens.primary)
         .enabled(!this.isSaving)
         .onClick(() => this.saveWord())
 
@@ -255,12 +259,12 @@ struct QuickCapturePage {
         .layoutWeight(1)
 
       Text('提示：双击智控键可快速唤起此页面')
-        .fontSize(12)
-        .fontColor('#999')
+        .fontSize(DesignTokens.font12)
+        .fontColor(DesignTokens.textTertiary)
         .margin({ bottom: 24 })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Color.White)
+    .backgroundColor(DesignTokens.bgBase)
   }
 }
