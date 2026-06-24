@@ -92,6 +92,42 @@ export class WordService {
     await this.wordRepo.delete(id);
   }
 
+  async updateWord(word: WordRecord): Promise<void> {
+    const existing = await this.wordRepo.findById(word.id);
+    if (!existing) {
+      throw new Error('Word not found: ' + word.id);
+    }
+
+    const normalized: WordRecord = {
+      id: word.id,
+      word: word.word.trim(),
+      translation: word.translation.map((t: string) => t.trim()).filter((t: string) => t.length > 0),
+      partOfSpeech: word.partOfSpeech,
+      exampleSentence: word.exampleSentence,
+      exampleTranslation: word.exampleTranslation,
+      phoneticUK: word.phoneticUK,
+      phoneticUS: word.phoneticUS,
+      source: word.source,
+      originalQuery: word.originalQuery,
+      tags: word.tags.map((t: string) => t.trim()).filter((t: string) => t.length > 0),
+      proficiency: word.proficiency,
+      reviewCount: word.reviewCount,
+      createdAt: word.createdAt,
+      lastReviewedAt: word.lastReviewedAt,
+      imageUri: word.imageUri,
+      definition: word.definition,
+      examples: word.examples,
+      isArchived: word.isArchived,
+      isFavorite: word.isFavorite
+    };
+
+    if (normalized.word.length === 0) {
+      throw new Error('单词不能为空');
+    }
+
+    await this.wordRepo.updateWord(normalized);
+  }
+
   async toggleFavorite(id: string): Promise<boolean> {
     const word = await this.wordRepo.findById(id);
     if (!word) throw new Error('Word not found: ' + id);

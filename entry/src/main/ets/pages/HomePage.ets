@@ -41,22 +41,25 @@ export struct HomePage {
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private isInitializing: boolean = false;
   private isInitialized: boolean = false;
+  private isFirstShown: boolean = true;
 
   async aboutToAppear() {
     await this.initialize();
   }
 
   async onShown() {
-    if (this.isInitializing) {
+    if (this.isFirstShown) {
+      this.isFirstShown = false;
+      return;
+    }
+    if (this.isInitializing || this.isLoading) {
       return;
     }
     if (!this.isInitialized) {
       await this.initialize();
       return;
     }
-    if (!this.isLoading) {
-      await this.loadData();
-    }
+    await this.loadData();
   }
 
   private async initAppStore(context: Context): Promise<void> {
@@ -95,9 +98,7 @@ export struct HomePage {
   }
 
   async loadData() {
-    if (this.isLoading) {
-      return;
-    }
+    console.info('HomePage loadData start');
     this.isLoading = true;
     this.errorMessage = '';
     try {
@@ -114,6 +115,7 @@ export struct HomePage {
       this.errorMessage = message;
     } finally {
       this.isLoading = false;
+      console.info('HomePage loadData finish, wordList.length=' + this.wordList.length);
     }
   }
 
@@ -123,7 +125,13 @@ export struct HomePage {
   }
 
   private navigateToCapture(): void {
-    this.navPath.pushPathByName('QuickCapturePage', null);
+    this.navPath.pushPathByName('QuickCapturePage', null, (popInfo: PopInfo) => {
+      const result = popInfo.result as Record<string, boolean>;
+      console.info('HomePage onPop QuickCapture result=' + JSON.stringify(result));
+      if (result.refresh && !this.isLoading) {
+        this.loadData();
+      }
+    });
   }
 
   private navigateToLibrary(): void {
@@ -132,7 +140,13 @@ export struct HomePage {
 
   private navigateToWordDetail(word: WordRecord): void {
     const param: WordDetailParam = { wordId: word.id };
-    this.navPath.pushPathByName('WordDetailPage', param);
+    this.navPath.pushPathByName('WordDetailPage', param, (popInfo: PopInfo) => {
+      const result = popInfo.result as Record<string, boolean>;
+      console.info('HomePage onPop WordDetail result=' + JSON.stringify(result));
+      if (result.refresh && !this.isLoading) {
+        this.loadData();
+      }
+    });
   }
 
   private greetingText(): string {
@@ -148,6 +162,17 @@ export struct HomePage {
 
   private greetingSubtitle(): string {
     return '今天也继续收集新词吧';
+  }
+
+  private captureSubtitle(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) {
+      return '早晨遇到的新词，记下来吧';
+    }
+    if (hour < 18) {
+      return '午后看到的，用英语怎么说？';
+    }
+    return '睡前回顾今天学到的新词';
   }
 
   private statusLabel(proficiency: number): string {
@@ -188,6 +213,10 @@ export struct HomePage {
       return DesignTokens.warningSurface;
     }
     return DesignTokens.primarySurface;
+  }
+
+  private wordKey(word: WordRecord): string {
+    return `${word.id}-${word.word}-${word.translation.join('；')}-${word.exampleSentence ?? ''}-${word.proficiency}`;
   }
 
   @Builder
@@ -241,7 +270,12 @@ export struct HomePage {
       this.MicButton()
     }
     .width('100%')
-    .padding(DesignTokens.spacing16)
+    .padding({
+      left: DesignTokens.spacing16,
+      right: DesignTokens.spacing16,
+      top: DesignTokens.spacing16,
+      bottom: DesignTokens.spacing24
+    })
     .alignItems(VerticalAlign.Center)
   }
 
@@ -318,11 +352,11 @@ export struct HomePage {
     Row() {
       Column() {
         Text('记录此刻')
-          .fontSize(DesignTokens.font18)
+          .fontSize(DesignTokens.font20)
           .fontWeight(FontWeight.Bold)
           .fontColor(DesignTokens.textPrimary)
-        Text('今天看到了什么？')
-          .fontSize(DesignTokens.font12)
+        Text(this.captureSubtitle())
+          .fontSize(DesignTokens.font14)
           .fontColor(DesignTokens.textSecondary)
           .margin({ top: DesignTokens.spacing4 })
       }
@@ -332,8 +366,8 @@ export struct HomePage {
       this.PlusButton()
     }
     .width('100%')
-    .height(96)
-    .padding(DesignTokens.spacing16)
+    .height(108)
+    .padding(DesignTokens.spacing20)
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialRegular)
     .borderRadius(DesignTokens.radius24)
@@ -361,29 +395,32 @@ export struct HomePage {
   }
 
   @Builder
-  WordCard(word: WordRecord) {
+  WordCard(word: WordRecord, isFirst: boolean, isLast: boolean) {
     Row() {
       Column() {
-        Text(word.word)
-          .fontSize(DesignTokens.font18)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(DesignTokens.textPrimary)
-        Text(word.exampleSentence ?? '—')
-          .fontSize(DesignTokens.font14)
-          .fontColor(DesignTokens.textSecondary)
-          .margin({ top: DesignTokens.spacing4 })
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(word.translation.length > 0 ? word.translation.join('；') : '暂无释义')
-          .fontSize(DesignTokens.font12)
-          .fontColor(DesignTokens.textTertiary)
-          .margin({ top: 2 })
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Row() {
+          Text(word.word)
+            .fontSize(isFirst ? DesignTokens.font18 : DesignTokens.font16)
+            .fontWeight(isFirst ? FontWeight.Bold : FontWeight.Medium)
+            .fontColor(DesignTokens.textPrimary)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(word.translation.length > 0 ? word.translation.join('；') : '暂无释义')
+            .fontSize(DesignTokens.font14)
+            .fontColor(DesignTokens.textSecondary)
+            .margin({ left: DesignTokens.spacing8 })
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
         Text(TimeUtils.formatRelativeTime(word.createdAt))
           .fontSize(DesignTokens.font10)
           .fontColor(DesignTokens.textTertiary)
-          .margin({ top: 6 })
+          .margin({ top: DesignTokens.spacing4 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -391,10 +428,11 @@ export struct HomePage {
       this.StatusBadge(word)
     }
     .width('100%')
-    .padding(DesignTokens.spacing16)
+    .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16, top: DesignTokens.spacing12, bottom: DesignTokens.spacing12 })
     .backgroundColor(Color.Transparent)
-    .systemMaterial(DesignTokens.materialThin)
+    .systemMaterial(isFirst ? DesignTokens.materialRegular : DesignTokens.materialThin)
     .borderRadius(DesignTokens.radius20)
+    .margin({ bottom: isLast ? 0 : DesignTokens.spacing8 })
     .stateStyles({
       pressed: pressedCard
     })
@@ -409,14 +447,6 @@ export struct HomePage {
         .fontWeight(FontWeight.Bold)
         .fontColor(DesignTokens.textPrimary)
         .layoutWeight(1)
-      Text('查看全部')
-        .fontSize(DesignTokens.font12)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.primary)
-        .stateStyles({
-          pressed: pressedText
-        })
-        .onClick(() => this.navigateToLibrary())
     }
     .width('100%')
     .margin({ bottom: DesignTokens.spacing12 })
@@ -431,23 +461,60 @@ export struct HomePage {
         this.CaptureMomentCard()
       }
       .width('100%')
-      .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16, bottom: DesignTokens.spacing16 })
+      .margin({ top: DesignTokens.spacing24, left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
     }
     .width('100%')
+    .padding({ bottom: DesignTokens.spacing24 })
   }
 
   @Builder
-  SectionHeaderItem() {
+  WordListSection() {
     Column() {
       this.SectionHeader()
+
+      if (this.isLoading) {
+        Column() {
+          this.LoadingState()
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.errorMessage.length > 0) {
+        Column() {
+          this.ErrorState()
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.wordList.length === 0) {
+        Column() {
+          this.EmptyState()
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List() {
+          ForEach(this.wordList, (word: WordRecord, index: number) => {
+            ListItem() {
+              this.WordCard(word, index === 0, index === this.wordList.length - 1)
+            }
+          }, (word: WordRecord) => this.wordKey(word))
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .listDirection(Axis.Vertical)
+        .edgeEffect(EdgeEffect.None)
+      }
     }
     .width('100%')
+    .layoutWeight(1)
+    .margin({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
     .padding(DesignTokens.spacing16)
-  }
-
-  @Builder
-  ListFooter() {
-    Blank().height(96)
+    .backgroundColor(DesignTokens.bgCard)
+    .borderRadius(DesignTokens.radius24)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -513,58 +580,12 @@ export struct HomePage {
       Stack({ alignContent: Alignment.Bottom }) {
         Column() {
           this.Header()
-
-          List() {
-            ListItem() {
-              this.TopContent()
-            }
-            .backgroundColor(DesignTokens.bgBase)
-
-            ListItem() {
-              this.SectionHeaderItem()
-            }
-            .backgroundColor(DesignTokens.bgCard)
-            .borderRadius({ topLeft: DesignTokens.radius24, topRight: DesignTokens.radius24 })
-
-            if (this.isLoading) {
-              ListItem() {
-                this.LoadingState()
-              }
-              .backgroundColor(DesignTokens.bgCard)
-            } else if (this.errorMessage.length > 0) {
-              ListItem() {
-                this.ErrorState()
-              }
-              .backgroundColor(DesignTokens.bgCard)
-            } else if (this.wordList.length === 0) {
-              ListItem() {
-                this.EmptyState()
-              }
-              .backgroundColor(DesignTokens.bgCard)
-            } else {
-              ForEach(this.wordList, (word: WordRecord) => {
-                ListItem() {
-                  this.WordCard(word)
-                }
-                .backgroundColor(DesignTokens.bgCard)
-                .margin({ bottom: DesignTokens.spacing12 })
-              }, (word: WordRecord) => word.id)
-            }
-
-            ListItem() {
-              this.ListFooter()
-            }
-            .backgroundColor(DesignTokens.bgCard)
-          }
-          .width('100%')
-          .layoutWeight(1)
-          .backgroundColor(DesignTokens.bgCard)
-          .scrollBar(BarState.Off)
-          .listDirection(Axis.Vertical)
-          .edgeEffect(EdgeEffect.None)
+          this.TopContent()
+          this.WordListSection()
         }
         .width('100%')
         .height('100%')
+        .padding({ bottom: 96 })
         .backgroundColor(DesignTokens.bgBase)
 
         BottomNav({ activeIndex: 0 })
@@ -573,6 +594,7 @@ export struct HomePage {
       .height('100%')
     }
     .hideTitleBar(true)
+    .onShown(() => this.onShown())
     .onBackPressed(() => {
       this.navPath.pop();
       return true;

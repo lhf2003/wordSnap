@@ -18,6 +18,7 @@ export struct QuickCapturePage {
   @Local selectedTags: string[] = [];
   @Local isSaving: boolean = false;
   @Local showSuccess: boolean = false;
+  @Local hasSaved: boolean = false;
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
 
   private wordService: WordService = new WordService();
@@ -96,6 +97,7 @@ export struct QuickCapturePage {
       const record = await this.wordService.addWord(params);
 
       AppStore.getInstance().addWordToList(record);
+      this.hasSaved = true;
 
       this.showSuccess = true;
       this.wordInput = '';
@@ -129,9 +131,17 @@ export struct QuickCapturePage {
     }
   }
 
+  private goBack(): void {
+    if (this.hasSaved) {
+      this.navPath.pop({ refresh: true });
+    } else {
+      this.navPath.pop();
+    }
+  }
+
   private handleBackKey(event: BackKeyEvent): boolean {
     if (event.keyCode === KeyCode.KEYCODE_BACK) {
-      this.navPath.pop();
+      this.goBack();
       return true;
     }
     return false;
@@ -149,7 +159,7 @@ export struct QuickCapturePage {
             .textAlign(TextAlign.Center)
             .margin({ right: 12 })
             .onClick(() => {
-              this.navPath.pop();
+              this.goBack();
             })
 
           Text('快速记录')
@@ -265,7 +275,7 @@ export struct QuickCapturePage {
     }
     .hideTitleBar(true)
     .onBackPressed(() => {
-      this.navPath.pop();
+      this.goBack();
       return true;
     })
   }

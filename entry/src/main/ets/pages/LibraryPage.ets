@@ -54,6 +54,7 @@ export struct LibraryPage {
       return;
     }
     this.isInitializing = true;
+    this.isLoading = false;
     try {
       await this.initWordService();
       await this.loadData();
@@ -152,6 +153,10 @@ export struct LibraryPage {
       return word.translation.join('；');
     }
     return word.exampleSentence ?? '暂无释义';
+  }
+
+  private wordKey(word: WordRecord): string {
+    return `${word.id}-${word.word}-${this.shortDefinition(word)}-${word.proficiency}-${word.createdAt}`;
   }
 
   @Builder
@@ -389,7 +394,7 @@ export struct LibraryPage {
                     GridItem() {
                       this.WordCard(word)
                     }
-                  }, (word: WordRecord) => word.id)
+                  }, (word: WordRecord) => this.wordKey(word))
                 }
                 .columnsTemplate('1fr 1fr')
                 .columnsGap(DesignTokens.spacing12)

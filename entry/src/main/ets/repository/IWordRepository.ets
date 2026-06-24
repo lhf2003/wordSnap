@@ -15,5 +15,6 @@ export interface IWordRepository {
   delete(id: string): Promise<void>;
   updateFavorite(id: string, isFavorite: boolean): Promise<void>;
   updateArchived(id: string, isArchived: boolean): Promise<void>;
+  updateWord(word: WordRecord): Promise<void>;
   getTotalCount(): Promise<number>;
 }

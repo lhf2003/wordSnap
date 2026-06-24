@@ -268,6 +268,29 @@ export class WordRepository implements IWordRepository {
     await this.store.update(values, predicates);
   }
 
+  async updateWord(word: WordRecord): Promise<void> {
+    if (!this.store) throw new Error('Repository not initialized');
+
+    const values: relationalStore.ValuesBucket = {
+      word: word.word,
+      translation: JSON.stringify(word.translation),
+      part_of_speech: word.partOfSpeech,
+      example_sentence: word.exampleSentence ?? '',
+      example_translation: word.exampleTranslation ?? '',
+      phonetic_uk: word.phoneticUK ?? '',
+      phonetic_us: word.phoneticUS ?? '',
+      original_query: word.originalQuery ?? '',
+      tags: JSON.stringify(word.tags),
+      image_uri: word.imageUri ?? '',
+      definition: word.definition ?? '',
+      examples: JSON.stringify(word.examples ?? [])
+    };
+
+    const predicates = new relationalStore.RdbPredicates('word_records');
+    predicates.equalTo('id', word.id);
+    await this.store.update(values, predicates);
+  }
+
   async getTotalCount(): Promise<number> {
     if (!this.store) throw new Error('Repository not initialized');
 
