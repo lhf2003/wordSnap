@@ -4,6 +4,22 @@ import { AppStore } from '../store/AppStore';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
 import { TimeUtils } from '../utils/TimeUtils';
+import { Context } from '@kit.AbilityKit';
+
+@Styles
+function pressedSubtle() {
+  .opacity(0.85)
+}
+
+@Styles
+function pressedCard() {
+  .opacity(0.92)
+}
+
+@Styles
+function pressedText() {
+  .opacity(0.7)
+}
 
 interface MarginOption {
   top?: number;
@@ -21,22 +37,36 @@ export struct HomePage {
   @Local reviewCount: number = 0;
   @Local isLoading: boolean = true;
   @Local errorMessage: string = '';
+  @Local userName: string = '朋友';
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private isInitializing: boolean = false;
+  private isInitialized: boolean = false;
 
   async aboutToAppear() {
     await this.initialize();
   }
 
   async onShown() {
-    await this.initialize();
+    if (this.isInitializing) {
+      return;
+    }
+    if (!this.isInitialized) {
+      await this.initialize();
+      return;
+    }
+    if (!this.isLoading) {
+      await this.loadData();
+    }
   }
 
-  private async initWordService(): Promise<void> {
-    const context = this.getUIContext().getHostContext();
-    if (context === undefined) {
-      throw new Error('无法获取应用上下文');
-    }
+  private async initAppStore(context: Context): Promise<void> {
+    const store = AppStore.getInstance();
+    store.setContext(context);
+    await store.load();
+    this.userName = store.userProfile.nickname?.trim() || '朋友';
+  }
+
+  private async initWordService(context: Context): Promise<void> {
     await this.wordService.init(context);
   }
 
@@ -46,8 +76,14 @@ export struct HomePage {
     }
     this.isInitializing = true;
     try {
-      await this.initWordService();
+      const context = this.getUIContext().getHostContext();
+      if (context === undefined) {
+        throw new Error('无法获取应用上下文');
+      }
+      await this.initAppStore(context);
+      await this.initWordService(context);
       await this.loadData();
+      this.isInitialized = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载数据失败';
       console.error('Failed to load index data: ' + message);
@@ -59,6 +95,9 @@ export struct HomePage {
   }
 
   async loadData() {
+    if (this.isLoading) {
+      return;
+    }
     this.isLoading = true;
     this.errorMessage = '';
     try {
@@ -79,6 +118,7 @@ export struct HomePage {
   }
 
   private async retryLoad(): Promise<void> {
+    this.isInitialized = false;
     await this.initialize();
   }
 
@@ -97,13 +137,57 @@ export struct HomePage {
 
   private greetingText(): string {
     const hour = new Date().getHours();
-    let prefix = 'Morning';
+    let prefix = '早上好';
     if (hour >= 12 && hour < 18) {
-      prefix = 'Afternoon';
+      prefix = '下午好';
     } else if (hour >= 18) {
-      prefix = 'Evening';
+      prefix = '晚上好';
     }
-    return `${prefix}, Alex`;
+    return `${prefix}，${this.userName}`;
+  }
+
+  private greetingSubtitle(): string {
+    return '今天也继续收集新词吧';
+  }
+
+  private statusLabel(proficiency: number): string {
+    if (proficiency >= 5) {
+      return '已掌握';
+    }
+    if (proficiency < 3) {
+      return '待复习';
+    }
+    return '学习中';
+  }
+
+  private statusIcon(proficiency: number): string {
+    if (proficiency >= 5) {
+      return '✓';
+    }
+    if (proficiency < 3) {
+      return '↻';
+    }
+    return '•';
+  }
+
+  private statusColor(proficiency: number): string {
+    if (proficiency >= 5) {
+      return DesignTokens.success;
+    }
+    if (proficiency < 3) {
+      return DesignTokens.warning;
+    }
+    return DesignTokens.primary;
+  }
+
+  private statusSurface(proficiency: number): string {
+    if (proficiency >= 5) {
+      return DesignTokens.successSurface;
+    }
+    if (proficiency < 3) {
+      return DesignTokens.warningSurface;
+    }
+    return DesignTokens.primarySurface;
   }
 
   @Builder
@@ -132,17 +216,27 @@ export struct HomePage {
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialRegular)
     .borderRadius(DesignTokens.radiusFull)
+    .stateStyles({
+      pressed: pressedSubtle
+    })
     .onClick(() => this.navigateToCapture())
   }
 
   @Builder
   Header() {
     Row() {
-      Text(this.greetingText())
-        .fontSize(DesignTokens.font24)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(DesignTokens.textPrimary)
-        .layoutWeight(1)
+      Column() {
+        Text(this.greetingText())
+          .fontSize(DesignTokens.font24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(DesignTokens.textPrimary)
+        Text(this.greetingSubtitle())
+          .fontSize(DesignTokens.font14)
+          .fontColor(DesignTokens.textSecondary)
+          .margin({ top: DesignTokens.spacing4 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
 
       this.MicButton()
     }
@@ -162,7 +256,7 @@ export struct HomePage {
         .fontSize(DesignTokens.font12)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.textSecondary)
-        .margin({ top: 4 })
+        .margin({ top: DesignTokens.spacing4 })
     }
     .layoutWeight(1)
     .margin(margin)
@@ -176,11 +270,11 @@ export struct HomePage {
   @Builder
   StatsRow() {
     Row() {
-      this.StatCard('TODAY', this.todayCount.toString(), DesignTokens.success,
+      this.StatCard('今日', this.todayCount.toString(), DesignTokens.success,
         { right: DesignTokens.spacing8 })
-      this.StatCard('TOTAL', this.totalCount.toString(), DesignTokens.primary,
+      this.StatCard('累计', this.totalCount.toString(), DesignTokens.primary,
         { left: DesignTokens.spacing8, right: DesignTokens.spacing8 })
-      this.StatCard('REVIEW', this.reviewCount.toString(), DesignTokens.warning,
+      this.StatCard('待复习', this.reviewCount.toString(), DesignTokens.warning,
         { left: DesignTokens.spacing8 })
     }
     .width('100%')
@@ -223,14 +317,14 @@ export struct HomePage {
   CaptureMomentCard() {
     Row() {
       Column() {
-        Text('Capture Moment')
+        Text('记录此刻')
           .fontSize(DesignTokens.font18)
           .fontWeight(FontWeight.Bold)
           .fontColor(DesignTokens.textPrimary)
-        Text('What did you see today?')
+        Text('今天看到了什么？')
           .fontSize(DesignTokens.font12)
           .fontColor(DesignTokens.textSecondary)
-          .margin({ top: 4 })
+          .margin({ top: DesignTokens.spacing4 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -244,40 +338,26 @@ export struct HomePage {
     .systemMaterial(DesignTokens.materialRegular)
     .borderRadius(DesignTokens.radius24)
     .stateStyles({
-      pressed: {
-        .opacity(0.92)
-      }
+      pressed: pressedCard
     })
     .onClick(() => this.navigateToCapture())
   }
 
   @Builder
   StatusBadge(word: WordRecord) {
-    if (word.proficiency >= 5) {
-      Text('MASTERED')
+    Row() {
+      Text(this.statusIcon(word.proficiency))
+        .fontSize(DesignTokens.font10)
+        .fontColor(this.statusColor(word.proficiency))
+        .margin({ right: DesignTokens.spacing4 })
+      Text(this.statusLabel(word.proficiency))
         .fontSize(DesignTokens.font10)
         .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.success)
-        .backgroundColor(DesignTokens.successSurface)
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .borderRadius(DesignTokens.radiusFull)
-    } else if (word.proficiency < 3) {
-      Text('REVIEW')
-        .fontSize(DesignTokens.font10)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.warning)
-        .backgroundColor(DesignTokens.warningSurface)
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .borderRadius(DesignTokens.radiusFull)
-    } else {
-      Text('LEARNING')
-        .fontSize(DesignTokens.font10)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.primary)
-        .backgroundColor(DesignTokens.primarySurface)
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .borderRadius(DesignTokens.radiusFull)
+        .fontColor(this.statusColor(word.proficiency))
     }
+    .backgroundColor(this.statusSurface(word.proficiency))
+    .padding({ left: DesignTokens.spacing8, right: DesignTokens.spacing8, top: DesignTokens.spacing4, bottom: DesignTokens.spacing4 })
+    .borderRadius(DesignTokens.radiusFull)
   }
 
   @Builder
@@ -291,7 +371,7 @@ export struct HomePage {
         Text(word.exampleSentence ?? '—')
           .fontSize(DesignTokens.font14)
           .fontColor(DesignTokens.textSecondary)
-          .margin({ top: 4 })
+          .margin({ top: DesignTokens.spacing4 })
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(word.translation.length > 0 ? word.translation.join('；') : '暂无释义')
@@ -316,9 +396,7 @@ export struct HomePage {
     .systemMaterial(DesignTokens.materialThin)
     .borderRadius(DesignTokens.radius20)
     .stateStyles({
-      pressed: {
-        .opacity(0.92)
-      }
+      pressed: pressedCard
     })
     .onClick(() => this.navigateToWordDetail(word))
   }
@@ -326,15 +404,18 @@ export struct HomePage {
   @Builder
   SectionHeader() {
     Row() {
-      Text('Recent Captures')
+      Text('最近记录')
         .fontSize(DesignTokens.font18)
         .fontWeight(FontWeight.Bold)
         .fontColor(DesignTokens.textPrimary)
         .layoutWeight(1)
-      Text('VIEW ALL')
+      Text('查看全部')
         .fontSize(DesignTokens.font12)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.primary)
+        .stateStyles({
+          pressed: pressedText
+        })
         .onClick(() => this.navigateToLibrary())
     }
     .width('100%')
@@ -379,15 +460,15 @@ export struct HomePage {
       Text(this.errorMessage)
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
-        .margin({ top: 8 })
+        .margin({ top: DesignTokens.spacing8 })
         .textAlign(TextAlign.Center)
       Button('重新加载')
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textOnPrimary)
         .backgroundColor(DesignTokens.primary)
         .borderRadius(DesignTokens.radiusFull)
-        .padding({ left: 24, right: 24, top: 10, bottom: 10 })
-        .margin({ top: 16 })
+        .padding({ left: DesignTokens.spacing24, right: DesignTokens.spacing24, top: 10, bottom: 10 })
+        .margin({ top: DesignTokens.spacing16 })
         .onClick(() => this.retryLoad())
     }
     .width('100%')
@@ -402,10 +483,10 @@ export struct HomePage {
         .fontSize(DesignTokens.font16)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.textSecondary)
-      Text('点击 Capture Moment，把看到的世界变成英语吧')
+      Text('点击“记录此刻”，把看到的世界变成英语吧')
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
-        .margin({ top: 8 })
+        .margin({ top: DesignTokens.spacing8 })
         .textAlign(TextAlign.Center)
     }
     .width('100%')

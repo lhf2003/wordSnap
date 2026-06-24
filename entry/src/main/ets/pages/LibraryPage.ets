@@ -4,6 +4,11 @@ import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
 import { TimeUtils } from '../utils/TimeUtils';
 
+@Styles
+function pressedLibraryCard() {
+  .opacity(0.92)
+}
+
 type FilterTab = 'all' | 'mastered' | 'reviewing' | 'new';
 
 @ComponentV2
@@ -17,13 +22,23 @@ export struct LibraryPage {
   @Local errorMessage: string = '';
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private isInitializing: boolean = false;
+  private isInitialized: boolean = false;
 
   async aboutToAppear() {
     await this.initialize();
   }
 
   async onShown() {
-    await this.initialize();
+    if (this.isInitializing) {
+      return;
+    }
+    if (!this.isInitialized) {
+      await this.initialize();
+      return;
+    }
+    if (!this.isLoading) {
+      await this.loadData();
+    }
   }
 
   private async initWordService(): Promise<void> {
@@ -42,6 +57,7 @@ export struct LibraryPage {
     try {
       await this.initWordService();
       await this.loadData();
+      this.isInitialized = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载数据失败';
       console.error('Failed to load library data: ' + message);
@@ -53,6 +69,9 @@ export struct LibraryPage {
   }
 
   private async loadData(): Promise<void> {
+    if (this.isLoading) {
+      return;
+    }
     this.isLoading = true;
     this.errorMessage = '';
     try {
@@ -313,9 +332,7 @@ export struct LibraryPage {
     .borderRadius(DesignTokens.radius20)
     .alignItems(HorizontalAlign.Start)
     .stateStyles({
-      pressed: {
-        .opacity(0.92)
-      }
+      pressed: pressedLibraryCard
     })
     .onClick(() => this.navigateToDetail(word))
   }

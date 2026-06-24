@@ -1,7 +1,13 @@
 import { DesignTokens } from './DesignTokens';
 
+@Styles
+function pressedNavItem() {
+  .opacity(0.75)
+}
+
 export interface NavItem {
   name: string;
+  label: string;
 }
 
 @ComponentV2
@@ -9,10 +15,10 @@ export struct BottomNav {
   @Param activeIndex: number = 0;
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private readonly items: NavItem[] = [
-    { name: 'HomePage' },
-    { name: 'LibraryPage' },
-    { name: 'DailyReportPage' },
-    { name: 'ProfilePage' }
+    { name: 'HomePage', label: '首页' },
+    { name: 'LibraryPage', label: '词库' },
+    { name: 'DailyReportPage', label: '报告' },
+    { name: 'ProfilePage', label: '我的' }
   ];
 
   private onItemTap(index: number): void {
@@ -65,27 +71,6 @@ export struct BottomNav {
     .width(24)
     .height(24)
     .justifyContent(FlexAlign.Center)
-  }
-
-  @Builder
-  InfoIcon(active: boolean) {
-    Column() {
-      Row()
-        .width(4)
-        .height(4)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(2)
-      Row()
-        .width(4)
-        .height(10)
-        .backgroundColor(active ? DesignTokens.primary : DesignTokens.textTertiary)
-        .borderRadius(2)
-        .margin({ top: 3 })
-    }
-    .width(24)
-    .height(24)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
@@ -148,22 +133,36 @@ export struct BottomNav {
     }
   }
 
+  @Builder
+  NavItemContent(item: NavItem, index: number, active: boolean) {
+    Column() {
+      this.NavIcon(index, active)
+      Text(item.label)
+        .fontSize(DesignTokens.font12)
+        .fontColor(active ? DesignTokens.primary : DesignTokens.textSecondary)
+        .fontWeight(active ? FontWeight.Medium : FontWeight.Regular)
+        .margin({ top: 2 })
+    }
+    .layoutWeight(1)
+    .height(56)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .stateStyles({
+      pressed: pressedNavItem
+    })
+    .onClick(() => this.onItemTap(index))
+  }
+
   build() {
     Row() {
       ForEach(this.items, (item: NavItem, index: number) => {
-        Column() {
-          this.NavIcon(index, index === this.activeIndex)
-        }
-        .layoutWeight(1)
-        .height(56)
-        .justifyContent(FlexAlign.Center)
-        .onClick(() => this.onItemTap(index))
-      }, (item: NavItem, index: number) => index.toString())
+        this.NavItemContent(item, index, index === this.activeIndex)
+      }, (item: NavItem) => item.name)
     }
     .width('84%')
     .height(64)
-    .padding({ left: 12, right: 12 })
-    .margin({ bottom: 16 })
+    .padding({ left: DesignTokens.spacing12, right: DesignTokens.spacing12 })
+    .margin({ bottom: DesignTokens.spacing16 })
     .borderRadius(DesignTokens.radiusFull)
     .backgroundColor(Color.Transparent)
     .systemMaterial(DesignTokens.materialUltraThin)
