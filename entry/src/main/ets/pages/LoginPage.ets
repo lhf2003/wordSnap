@@ -1,15 +1,14 @@
-import { router } from '@kit.ArkUI';
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AuthService } from '../service/auth/AuthService';
 import { DesignTokens } from '../components/DesignTokens';
 
-@Entry
-@Component
-struct LoginPage {
-  @State isLoading: boolean = false;
-  @State errorMessage: string = '';
-  @State isAgreementSelected: boolean = false;
+@ComponentV2
+export struct LoginPage {
+  @Local isLoading: boolean = false;
+  @Local errorMessage: string = '';
+  @Local isAgreementSelected: boolean = false;
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private authService: AuthService = AuthService.getInstance();
 
   private loginButtonController: loginComponentManager.LoginWithHuaweiIDButtonController =
@@ -47,7 +46,7 @@ struct LoginPage {
     this.errorMessage = '';
     try {
       await this.authService.exchangeToken(response.authorizationCode);
-      router.replaceUrl({ url: 'pages/Index' });
+      this.navPath.replacePath({ name: 'HomePage' });
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败';
       console.error('LoginPage login failed: ' + message);
@@ -114,42 +113,49 @@ struct LoginPage {
   }
 
   build() {
-    Column() {
-      Blank()
-        .layoutWeight(1)
-
-      this.LogoSection()
-
-      Blank()
-        .layoutWeight(1)
-
+    NavDestination() {
       Column() {
-        this.ErrorBanner()
+        Blank()
+          .layoutWeight(1)
 
-        if (this.isLoading) {
-          LoadingProgress()
-            .width(40)
-            .height(40)
-            .color(DesignTokens.primary)
-        } else {
-          LoginWithHuaweiIDButton({
-            params: this.getLoginButtonParams(),
-            controller: this.loginButtonController
-          })
-            .width('100%')
-            .height(48)
+        this.LogoSection()
+
+        Blank()
+          .layoutWeight(1)
+
+        Column() {
+          this.ErrorBanner()
+
+          if (this.isLoading) {
+            LoadingProgress()
+              .width(40)
+              .height(40)
+              .color(DesignTokens.primary)
+          } else {
+            LoginWithHuaweiIDButton({
+              params: this.getLoginButtonParams(),
+              controller: this.loginButtonController
+            })
+              .width('100%')
+              .height(48)
+          }
+
+          this.AgreementRow()
         }
+        .width('100%')
+        .padding({ left: DesignTokens.spacing32, right: DesignTokens.spacing32 })
 
-        this.AgreementRow()
+        Blank()
+          .height(48)
       }
       .width('100%')
-      .padding({ left: DesignTokens.spacing32, right: DesignTokens.spacing32 })
-
-      Blank()
-        .height(48)
+      .height('100%')
+      .backgroundColor(DesignTokens.bgBase)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(DesignTokens.bgBase)
+    .hideTitleBar(true)
+    .onBackPressed(() => {
+      this.navPath.pop();
+      return true;
+    })
   }
 }

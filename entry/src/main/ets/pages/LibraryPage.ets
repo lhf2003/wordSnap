@@ -1,5 +1,4 @@
-import { router } from '@kit.ArkUI';
-import { WordRecord } from '../model/Types';
+import { WordRecord, WordDetailParam } from '../model/Types';
 import { WordService } from '../service/WordService';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
@@ -7,38 +6,49 @@ import { TimeUtils } from '../utils/TimeUtils';
 
 type FilterTab = 'all' | 'mastered' | 'reviewing' | 'new';
 
-@Entry
-@Component
-struct LibraryPage {
+@ComponentV2
+export struct LibraryPage {
   private wordService: WordService = new WordService();
-  @State words: WordRecord[] = [];
-  @State filteredWords: WordRecord[] = [];
-  @State searchQuery: string = '';
-  @State activeTab: FilterTab = 'all';
-  @State isLoading: boolean = true;
-  @State errorMessage: string = '';
+  @Local words: WordRecord[] = [];
+  @Local filteredWords: WordRecord[] = [];
+  @Local searchQuery: string = '';
+  @Local activeTab: FilterTab = 'all';
+  @Local isLoading: boolean = true;
+  @Local errorMessage: string = '';
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
+  private isInitializing: boolean = false;
 
   async aboutToAppear() {
     await this.initialize();
   }
 
-  async onPageShow() {
-    await this.loadData();
+  async onShown() {
+    await this.initialize();
+  }
+
+  private async initWordService(): Promise<void> {
+    const context = this.getUIContext().getHostContext();
+    if (context === undefined) {
+      throw new Error('无法获取应用上下文');
+    }
+    await this.wordService.init(context);
   }
 
   private async initialize(): Promise<void> {
+    if (this.isInitializing) {
+      return;
+    }
+    this.isInitializing = true;
     try {
-      const context = this.getUIContext().getHostContext();
-      if (context === undefined) {
-        throw new Error('无法获取应用上下文');
-      }
-      await this.wordService.init(context);
+      await this.initWordService();
       await this.loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载数据失败';
       console.error('Failed to load library data: ' + message);
       this.errorMessage = message;
       this.isLoading = false;
+    } finally {
+      this.isInitializing = false;
     }
   }
 
@@ -91,7 +101,8 @@ struct LibraryPage {
   }
 
   private navigateToDetail(word: WordRecord): void {
-    router.pushUrl({ url: 'pages/WordDetailPage', params: { wordId: word.id } });
+    const param: WordDetailParam = { wordId: word.id };
+    this.navPath.pushPathByName('WordDetailPage', param);
   }
 
   private statusColor(word: WordRecord): ResourceColor {
@@ -248,8 +259,8 @@ struct LibraryPage {
     Button(label)
       .fontSize(DesignTokens.font12)
       .fontWeight(FontWeight.Medium)
-      .fontColor(this.activeTab === tab ? Color.White : DesignTokens.textSecondary)
-      .backgroundColor(this.activeTab === tab ? DesignTokens.primary : 'rgba(108, 122, 252, 0.08)')
+      .fontColor(this.activeTab === tab ? DesignTokens.textOnPrimary : DesignTokens.textSecondary)
+      .backgroundColor(this.activeTab === tab ? DesignTokens.primary : DesignTokens.primarySurfaceSubtle)
       .borderRadius(DesignTokens.radiusFull)
       .padding({ left: 16, right: 16, top: 8, bottom: 8 })
       .onClick(() => this.onTabChange(tab))
@@ -341,50 +352,57 @@ struct LibraryPage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Column() {
-        this.Header()
+    NavDestination() {
+      Stack({ alignContent: Alignment.Bottom }) {
+        Column() {
+          this.Header()
 
-        Scroll() {
-          Column() {
-            this.SearchBar()
-            this.FilterTabs()
+          Scroll() {
+            Column() {
+              this.SearchBar()
+              this.FilterTabs()
 
-            if (this.isLoading) {
-              this.LoadingState()
-            } else if (this.filteredWords.length === 0) {
-              this.EmptyState()
-            } else {
-              Grid() {
-                ForEach(this.filteredWords, (word: WordRecord) => {
-                  GridItem() {
-                    this.WordCard(word)
-                  }
-                }, (word: WordRecord) => word.id)
+              if (this.isLoading) {
+                this.LoadingState()
+              } else if (this.filteredWords.length === 0) {
+                this.EmptyState()
+              } else {
+                Grid() {
+                  ForEach(this.filteredWords, (word: WordRecord) => {
+                    GridItem() {
+                      this.WordCard(word)
+                    }
+                  }, (word: WordRecord) => word.id)
+                }
+                .columnsTemplate('1fr 1fr')
+                .columnsGap(DesignTokens.spacing12)
+                .rowsGap(DesignTokens.spacing12)
+                .width('100%')
+                .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
               }
-              .columnsTemplate('1fr 1fr')
-              .columnsGap(DesignTokens.spacing12)
-              .rowsGap(DesignTokens.spacing12)
-              .width('100%')
-              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
-            }
 
-            Blank().height(96)
+              Blank().height(96)
+            }
+            .width('100%')
           }
           .width('100%')
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
+          .backgroundColor(DesignTokens.bgBase)
         }
         .width('100%')
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .height('100%')
         .backgroundColor(DesignTokens.bgBase)
+
+        BottomNav({ activeIndex: 1 })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(DesignTokens.bgBase)
-
-      BottomNav({ activeIndex: 1 })
     }
-    .width('100%')
-    .height('100%')
+    .hideTitleBar(true)
+    .onBackPressed(() => {
+      this.navPath.pop();
+      return true;
+    })
   }
 }

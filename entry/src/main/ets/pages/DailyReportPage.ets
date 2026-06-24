@@ -1,29 +1,45 @@
-import { router } from '@kit.ArkUI';
 import { DailyReport, Exercise } from '../model/Types';
 import { ReportService } from '../service/ReportService';
 import { AppStore } from '../store/AppStore';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
 
-@Entry
-@Component
-struct DailyReportPage {
-  @State report: DailyReport | null = null;
-  @State history: DailyReport[] = [];
-  @State isLoading: boolean = true;
-  @State errorMessage: string = '';
-  @State selectedExerciseId: string = '';
-  @State showAnswer: boolean = false;
+@ComponentV2
+export struct DailyReportPage {
+  @Local report: DailyReport | null = null;
+  @Local history: DailyReport[] = [];
+  @Local isLoading: boolean = true;
+  @Local errorMessage: string = '';
+  @Local selectedExerciseId: string = '';
+  @Local showAnswer: boolean = false;
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
 
   private reportService: ReportService = new ReportService();
+  private isInitializing: boolean = false;
 
   async aboutToAppear() {
+    await this.initialize();
+  }
+
+  async onShown() {
+    await this.initialize();
+  }
+
+  private async initReportService(): Promise<void> {
+    const context = this.getUIContext().getHostContext();
+    if (context === undefined) {
+      throw new Error('无法获取应用上下文');
+    }
+    await this.reportService.init(context);
+  }
+
+  private async initialize(): Promise<void> {
+    if (this.isInitializing) {
+      return;
+    }
+    this.isInitializing = true;
     try {
-      const context = this.getUIContext().getHostContext();
-      if (context === undefined) {
-        throw new Error('无法获取应用上下文');
-      }
-      await this.reportService.init(context);
+      await this.initReportService();
       await this.loadTodayReport();
       await this.loadHistory();
     } catch (err) {
@@ -31,7 +47,13 @@ struct DailyReportPage {
       console.error('DailyReportPage init failed: ' + message);
       this.errorMessage = message;
       this.isLoading = false;
+    } finally {
+      this.isInitializing = false;
     }
+  }
+
+  private async retryLoad(): Promise<void> {
+    await this.initialize();
   }
 
   private async loadTodayReport(): Promise<void> {
@@ -75,7 +97,7 @@ struct DailyReportPage {
   }
 
   private navigateBack(): void {
-    router.back();
+    this.navPath.pop();
   }
 
   private onExerciseClick(exercise: Exercise): void {
@@ -191,7 +213,7 @@ struct DailyReportPage {
     .width('100%')
     .padding(DesignTokens.spacing16)
     .margin({ top: DesignTokens.spacing12 })
-    .backgroundColor('rgba(52, 211, 153, 0.08)')
+    .backgroundColor(DesignTokens.successSurfaceSoft)
     .borderRadius(DesignTokens.radius16)
     .alignItems(HorizontalAlign.Start)
   }
@@ -202,7 +224,7 @@ struct DailyReportPage {
       .fontSize(DesignTokens.font14)
       .fontColor(DesignTokens.primary)
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .backgroundColor('rgba(108, 122, 252, 0.10)')
+      .backgroundColor(DesignTokens.primarySurfaceSoft)
       .borderRadius(DesignTokens.radiusFull)
       .margin({ right: 8, bottom: 8 })
   }
@@ -280,7 +302,7 @@ struct DailyReportPage {
         .width('100%')
         .margin({ top: DesignTokens.spacing8 })
         .padding(DesignTokens.spacing12)
-        .backgroundColor('rgba(52, 211, 153, 0.08)')
+        .backgroundColor(DesignTokens.successSurfaceSoft)
         .borderRadius(DesignTokens.radius8)
       } else {
         Text('点击查看答案')
@@ -417,12 +439,12 @@ struct DailyReportPage {
         .textAlign(TextAlign.Center)
       Button('重新生成')
         .fontSize(DesignTokens.font14)
-        .fontColor(Color.White)
+        .fontColor(DesignTokens.textOnPrimary)
         .backgroundColor(DesignTokens.primary)
         .borderRadius(DesignTokens.radiusFull)
         .padding({ left: 24, right: 24, top: 10, bottom: 10 })
         .margin({ top: 16 })
-        .onClick(() => this.loadTodayReport())
+        .onClick(() => this.retryLoad())
     }
     .width('100%')
     .padding({ top: 60, bottom: 60 })
@@ -430,59 +452,66 @@ struct DailyReportPage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Column() {
-        this.Header()
+    NavDestination() {
+      Stack({ alignContent: Alignment.Bottom }) {
+        Column() {
+          this.Header()
 
-        if (this.isLoading) {
-          this.LoadingState()
-        } else if (this.errorMessage.length > 0) {
-          this.ErrorState()
-        } else {
-          List() {
-            ListItem() {
-              this.StatsGrid()
-            }
+          if (this.isLoading) {
+            this.LoadingState()
+          } else if (this.errorMessage.length > 0) {
+            this.ErrorState()
+          } else {
+            List() {
+              ListItem() {
+                this.StatsGrid()
+              }
 
-            ListItem() {
-              this.EncouragementCard()
-            }
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+              ListItem() {
+                this.EncouragementCard()
+              }
+              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
 
-            ListItem() {
-              this.HighFrequencyWords()
-            }
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+              ListItem() {
+                this.HighFrequencyWords()
+              }
+              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
 
-            ListItem() {
-              this.ExercisesSection()
-            }
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+              ListItem() {
+                this.ExercisesSection()
+              }
+              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
 
-            ListItem() {
-              this.HistorySection()
-            }
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+              ListItem() {
+                this.HistorySection()
+              }
+              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
 
-            ListItem() {
-              Column().width('100%').height(96)
+              ListItem() {
+                Column().width('100%').height(96)
+              }
             }
+            .width('100%')
+            .layoutWeight(1)
+            .scrollBar(BarState.Off)
+            .listDirection(Axis.Vertical)
+            .edgeEffect(EdgeEffect.None)
+            .backgroundColor(DesignTokens.bgBase)
           }
-          .width('100%')
-          .layoutWeight(1)
-          .scrollBar(BarState.Off)
-          .listDirection(Axis.Vertical)
-          .edgeEffect(EdgeEffect.None)
-          .backgroundColor(DesignTokens.bgBase)
         }
+        .width('100%')
+        .height('100%')
+        .backgroundColor(DesignTokens.bgBase)
+
+        BottomNav({ activeIndex: 2 })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(DesignTokens.bgBase)
-
-      BottomNav({ activeIndex: 2 })
     }
-    .width('100%')
-    .height('100%')
+    .hideTitleBar(true)
+    .onBackPressed(() => {
+      this.navPath.pop();
+      return true;
+    })
   }
 }

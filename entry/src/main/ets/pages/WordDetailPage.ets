@@ -1,23 +1,15 @@
-import { router } from '@kit.ArkUI';
 import { WordRecord, ExampleSentence } from '../model/Types';
 import { WordService } from '../service/WordService';
 import { DesignTokens } from '../components/DesignTokens';
 
-interface RouterParams {
-  wordId?: string;
-}
-
-@Entry
-@Component
-struct WordDetailPage {
+@ComponentV2
+export struct WordDetailPage {
   private wordService: WordService = new WordService();
-  @State word: WordRecord | null = null;
-  @State isLoading: boolean = true;
-  @State errorMessage: string = '';
-
-  async aboutToAppear() {
-    await this.initialize();
-  }
+  @Local wordId: string = '';
+  @Local word: WordRecord | null = null;
+  @Local isLoading: boolean = true;
+  @Local errorMessage: string = '';
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
 
   private async initialize(): Promise<void> {
     try {
@@ -27,13 +19,7 @@ struct WordDetailPage {
       }
       await this.wordService.init(context);
 
-      const params = router.getParams() as RouterParams | undefined;
-      const wordId = params?.wordId;
-      if (!wordId) {
-        throw new Error('缺少单词 ID');
-      }
-
-      const word = await this.wordService.getWordById(wordId);
+      const word = await this.wordService.getWordById(this.wordId);
       if (!word) {
         throw new Error('单词不存在');
       }
@@ -48,7 +34,7 @@ struct WordDetailPage {
   }
 
   private goBack(): void {
-    router.back();
+    this.navPath.pop();
   }
 
   private copyWord(updates: Partial<WordRecord>): WordRecord | null {
@@ -240,7 +226,7 @@ struct WordDetailPage {
           Text(tag)
             .fontSize(DesignTokens.font12)
             .fontColor(DesignTokens.textSecondary)
-            .backgroundColor('rgba(100, 116, 139, 0.10)')
+            .backgroundColor(DesignTokens.neutralSurface)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .borderRadius(DesignTokens.radiusFull)
         }, (tag: string) => tag)
@@ -337,7 +323,7 @@ struct WordDetailPage {
           Row()
             .layoutWeight(1)
             .height(6)
-            .backgroundColor(filled === 1 ? this.statusColor() : 'rgba(100, 116, 139, 0.15)')
+            .backgroundColor(filled === 1 ? this.statusColor() : DesignTokens.neutralSurfaceMedium)
             .borderRadius(DesignTokens.radiusFull)
         }, (filled: number, index: number) => index.toString())
       }
@@ -354,7 +340,7 @@ struct WordDetailPage {
   StarIcon(filled: boolean) {
     Text(filled ? '★' : '☆')
       .fontSize(20)
-      .fontColor(filled ? Color.White : DesignTokens.textPrimary)
+      .fontColor(filled ? DesignTokens.textOnPrimary : DesignTokens.textPrimary)
       .textAlign(TextAlign.Center)
       .width(20)
       .height(20)
@@ -366,12 +352,12 @@ struct WordDetailPage {
       Row()
         .width(16)
         .height(2)
-        .backgroundColor(Color.White)
+        .backgroundColor(DesignTokens.textOnPrimary)
         .borderRadius(1)
       Row()
         .width(12)
         .height(8)
-        .backgroundColor(Color.White)
+        .backgroundColor(DesignTokens.textOnPrimary)
         .borderRadius(1)
         .margin({ top: 3 })
     }
@@ -391,12 +377,12 @@ struct WordDetailPage {
           Text(this.word?.isFavorite ? 'Favorited' : 'Mark Review')
             .fontSize(DesignTokens.font14)
             .fontWeight(FontWeight.Medium)
-            .fontColor(this.word?.isFavorite ? Color.White : DesignTokens.textPrimary)
+            .fontColor(this.word?.isFavorite ? DesignTokens.textOnPrimary : DesignTokens.textPrimary)
         }
       }
       .layoutWeight(1)
       .height(48)
-      .backgroundColor(this.word?.isFavorite ? DesignTokens.warning : 'rgba(100, 116, 139, 0.10)')
+      .backgroundColor(this.word?.isFavorite ? DesignTokens.warning : DesignTokens.neutralSurface)
       .borderRadius(DesignTokens.radiusFull)
       .onClick(() => this.toggleFavorite())
 
@@ -407,7 +393,7 @@ struct WordDetailPage {
           Text(this.word?.isArchived ? 'Archived' : 'Archive Word')
             .fontSize(DesignTokens.font14)
             .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
+            .fontColor(DesignTokens.textOnPrimary)
         }
       }
       .layoutWeight(1)
@@ -448,7 +434,7 @@ struct WordDetailPage {
         .textAlign(TextAlign.Center)
       Button('返回')
         .fontSize(DesignTokens.font14)
-        .fontColor(Color.White)
+        .fontColor(DesignTokens.textOnPrimary)
         .backgroundColor(DesignTokens.primary)
         .borderRadius(DesignTokens.radiusFull)
         .padding({ left: 24, right: 24, top: 10, bottom: 10 })
@@ -463,40 +449,64 @@ struct WordDetailPage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      if (this.isLoading) {
-        this.LoadingState()
-      } else if (this.errorMessage.length > 0) {
-        this.ErrorState()
-      } else if (this.word !== null) {
-        Column() {
-          this.TopBar()
+    NavDestination() {
+      Stack({ alignContent: Alignment.Bottom }) {
+        if (this.isLoading) {
+          this.LoadingState()
+        } else if (this.errorMessage.length > 0) {
+          this.ErrorState()
+        } else if (this.word !== null) {
+          Column() {
+            this.TopBar()
 
-          Scroll() {
-            Column({ space: DesignTokens.spacing16 }) {
-              this.WordHeader()
-              this.DefinitionSection()
-              this.ExamplesSection()
-              this.ProgressSection()
+            Scroll() {
+              Column({ space: DesignTokens.spacing16 }) {
+                this.WordHeader()
+                this.DefinitionSection()
+                this.ExamplesSection()
+                this.ProgressSection()
 
-              Blank().height(80)
+                Blank().height(80)
+              }
+              .width('100%')
+              .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
             }
             .width('100%')
-            .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+            .layoutWeight(1)
+            .scrollBar(BarState.Off)
           }
           .width('100%')
-          .layoutWeight(1)
-          .scrollBar(BarState.Off)
-        }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(DesignTokens.bgBase)
+          .height('100%')
+          .backgroundColor(DesignTokens.bgBase)
 
-        this.ActionButtons()
+          this.ActionButtons()
+        }
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(DesignTokens.bgBase)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(DesignTokens.bgBase)
+    .hideTitleBar(true)
+    .onReady(async (context: NavDestinationContext) => {
+      const param = context.pathInfo.param as Record<string, string> | undefined;
+      this.wordId = param?.wordId ?? '';
+      if (this.wordId.length === 0) {
+        this.errorMessage = '缺少单词 ID';
+        this.isLoading = false;
+        return;
+      }
+      try {
+        await this.initialize();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '加载失败';
+        console.error('WordDetailPage onReady failed: ' + message);
+        this.errorMessage = message;
+        this.isLoading = false;
+      }
+    })
+    .onBackPressed(() => {
+      this.navPath.pop();
+      return true;
+    })
   }
 }

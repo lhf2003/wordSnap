@@ -1,26 +1,25 @@
-import { router } from '@kit.ArkUI';
 import { DesignTokens } from './DesignTokens';
 
 export interface NavItem {
-  page: string;
+  name: string;
 }
 
-@Component
+@ComponentV2
 export struct BottomNav {
-  @Prop activeIndex: number = 0;
+  @Param activeIndex: number = 0;
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private readonly items: NavItem[] = [
-    { page: 'pages/Index' },
-    { page: 'pages/LibraryPage' },
-    { page: 'pages/DailyReportPage' },
-    { page: 'pages/ProfilePage' }
+    { name: 'HomePage' },
+    { name: 'LibraryPage' },
+    { name: 'DailyReportPage' },
+    { name: 'ProfilePage' }
   ];
 
   private onItemTap(index: number): void {
     if (index === this.activeIndex) {
       return;
     }
-    const target = this.items[index].page;
-    router.replaceUrl({ url: target });
+    this.navPath.replacePath({ name: this.items[index].name });
   }
 
   @Builder

@@ -36,6 +36,7 @@ const WORD_TABLE_SQL = `
 export class WordRepository implements IWordRepository {
   private static instance: WordRepository;
   private store: relationalStore.RdbStore | null = null;
+  private initPromise: Promise<void> | null = null;
 
   static getInstance(): WordRepository {
     if (!WordRepository.instance) {
@@ -48,15 +49,29 @@ export class WordRepository implements IWordRepository {
     if (this.store !== null) {
       return;
     }
-    this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
-    await this.store.executeSql(WORD_TABLE_SQL);
-    await this.migrateWordTable();
-    await this.store.executeSql(
-      'CREATE INDEX IF NOT EXISTS idx_word_created ON word_records(created_at)'
-    );
-    await this.store.executeSql(
-      'CREATE INDEX IF NOT EXISTS idx_word_proficiency ON word_records(proficiency, last_reviewed_at)'
-    );
+    if (this.initPromise !== null) {
+      return this.initPromise;
+    }
+    this.initPromise = this.doInit(context);
+    return this.initPromise;
+  }
+
+  private async doInit(context: Context): Promise<void> {
+    try {
+      this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
+      await this.store.executeSql(WORD_TABLE_SQL);
+      await this.migrateWordTable();
+      await this.store.executeSql(
+        'CREATE INDEX IF NOT EXISTS idx_word_created ON word_records(created_at)'
+      );
+      await this.store.executeSql(
+        'CREATE INDEX IF NOT EXISTS idx_word_proficiency ON word_records(proficiency, last_reviewed_at)'
+      );
+    } catch (err) {
+      this.initPromise = null;
+      const message = err instanceof Error ? err.message : '数据库初始化失败';
+      throw new Error(message);
+    }
   }
 
   private async migrateWordTable(): Promise<void> {

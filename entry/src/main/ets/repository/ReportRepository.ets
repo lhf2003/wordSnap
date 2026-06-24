@@ -29,6 +29,7 @@ const REPORT_TABLE_SQL = `
 export class ReportRepository {
   private static instance: ReportRepository | null = null;
   private store: relationalStore.RdbStore | null = null;
+  private initPromise: Promise<void> | null = null;
 
   static getInstance(): ReportRepository {
     if (ReportRepository.instance === null) {
@@ -43,14 +44,28 @@ export class ReportRepository {
     if (this.store !== null) {
       return;
     }
-    this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
-    await this.store.executeSql(REPORT_TABLE_SQL);
-    await this.store.executeSql(
-      'CREATE INDEX IF NOT EXISTS idx_report_date ON daily_reports(date)'
-    );
-    await this.store.executeSql(
-      'CREATE INDEX IF NOT EXISTS idx_report_generated ON daily_reports(generated_at)'
-    );
+    if (this.initPromise !== null) {
+      return this.initPromise;
+    }
+    this.initPromise = this.doInit(context);
+    return this.initPromise;
+  }
+
+  private async doInit(context: Context): Promise<void> {
+    try {
+      this.store = await relationalStore.getRdbStore(context, STORE_CONFIG);
+      await this.store.executeSql(REPORT_TABLE_SQL);
+      await this.store.executeSql(
+        'CREATE INDEX IF NOT EXISTS idx_report_date ON daily_reports(date)'
+      );
+      await this.store.executeSql(
+        'CREATE INDEX IF NOT EXISTS idx_report_generated ON daily_reports(generated_at)'
+      );
+    } catch (err) {
+      this.initPromise = null;
+      const message = err instanceof Error ? err.message : '数据库初始化失败';
+      throw new Error(message);
+    }
   }
 
   async insert(report: DailyReport): Promise<void> {

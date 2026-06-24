@@ -9,6 +9,19 @@ export class DesignTokens {
   static readonly warning: string = '#FBBF24';
   static readonly danger: string = '#FB7185';
 
+  // Semantic surfaces (tinted backgrounds for badges, chips, cards)
+  static readonly successSurface: string = 'rgba(52, 211, 153, 0.12)';
+  static readonly successSurfaceSoft: string = 'rgba(52, 211, 153, 0.08)';
+  static readonly warningSurface: string = 'rgba(251, 191, 36, 0.12)';
+  static readonly primarySurface: string = 'rgba(108, 122, 252, 0.12)';
+  static readonly primarySurfaceSoft: string = 'rgba(108, 122, 252, 0.10)';
+  static readonly primarySurfaceSubtle: string = 'rgba(108, 122, 252, 0.08)';
+  static readonly neutralSurface: string = 'rgba(100, 116, 139, 0.10)';
+  static readonly neutralSurfaceMedium: string = 'rgba(100, 116, 139, 0.15)';
+
+  // Text/icons on colored backgrounds
+  static readonly textOnPrimary: string = '#FFFFFF';
+
   // Backgrounds: mist-blue grey for immersive atmosphere
   static readonly bgBase: string = '#F0F4F8';
   static readonly bgBaseDark: string = '#0F172A';
@@ -28,7 +41,7 @@ export class DesignTokens {
   // Immersive light-sense colors (used with materialColor, must be translucent)
   static readonly materialPrimaryTint: string = 'rgba(165, 180, 255, 0.18)';
   static readonly materialSurfaceTint: string = 'rgba(255, 255, 255, 0.35)';
-  static readonly materialGlow: ResourceColor = 'rgba(165, 180, 255, 0.30)';
+  static readonly materialGlow: string = 'rgba(165, 180, 255, 0.30)';
 
   // Spacing (4dp/8dp rhythm)
   static readonly spacing4: number = 4;

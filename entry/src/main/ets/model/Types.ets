@@ -146,6 +146,10 @@ export interface VoiceIntent {
   sourceLanguage?: string;
 }
 
+export interface WordDetailParam {
+  wordId: string;
+}
+
 export interface DailyDataPoint {
   date: string;
   newWords: number;

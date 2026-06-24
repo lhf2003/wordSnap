@@ -13,15 +13,16 @@ export default class ShortcutKeyAbility extends UIAbility {
     const triggerSource = parameters !== undefined ? parameters['ohos.ability.params.shortcutKey'] : undefined;
     if (triggerSource === 'double_click' || triggerSource === true) {
       LaunchState.getInstance().setShortcutStartTime(this.startTime);
+      LaunchState.getInstance().setShortcutLaunchTarget('QuickCapturePage');
     }
     console.info(TAG, 'onCreate cost: ' + (Date.now() - this.startTime) + 'ms');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     console.info(TAG, 'before loadContent cost: ' + (Date.now() - this.startTime) + 'ms');
-    windowStage.loadContent('pages/QuickCapturePage', (err) => {
+    windowStage.loadContent('pages/Index', (err) => {
       if (err) {
-        console.error(TAG, 'Failed to load QuickCapturePage: ' + JSON.stringify(err));
+        console.error(TAG, 'Failed to load pages/Index: ' + JSON.stringify(err));
       } else {
         console.info(TAG, 'loadContent done cost: ' + (Date.now() - this.startTime) + 'ms');
       }

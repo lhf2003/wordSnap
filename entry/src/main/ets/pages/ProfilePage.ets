@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { AuthService } from '../service/auth/AuthService';
 import { AppStore } from '../store/AppStore';
 import { DesignTokens } from '../components/DesignTokens';
@@ -8,15 +7,15 @@ import { ReportScheduler } from '../service/ReportScheduler';
 const BUNDLE_NAME = 'com.lhf.worksnap';
 const ENTRY_ABILITY_NAME = 'EntryAbility';
 
-@Entry
-@Component
-struct ProfilePage {
-  @State nickname: string = '';
-  @State avatarUrl: string = '';
-  @State isLoggingOut: boolean = false;
-  @State reportEnabled: boolean = true;
-  @State reportTime: string = '21:00';
-  @State isSavingReminder: boolean = false;
+@ComponentV2
+export struct ProfilePage {
+  @Local nickname: string = '';
+  @Local avatarUrl: string = '';
+  @Local isLoggingOut: boolean = false;
+  @Local reportEnabled: boolean = true;
+  @Local reportTime: string = '21:00';
+  @Local isSavingReminder: boolean = false;
+  @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private authService: AuthService = AuthService.getInstance();
   private reportScheduler: ReportScheduler = new ReportScheduler();
 
@@ -36,7 +35,7 @@ struct ProfilePage {
     this.isLoggingOut = true;
     try {
       await this.authService.signOut();
-      router.replaceUrl({ url: 'pages/LoginPage' });
+      this.navPath.replacePath({ name: 'LoginPage' });
     } catch (err) {
       const message = err instanceof Error ? err.message : '退出失败';
       console.error('ProfilePage logout failed: ' + message);
@@ -67,7 +66,7 @@ struct ProfilePage {
         Column() {
           Text(this.nickname.substring(0, 1))
             .fontSize(DesignTokens.font32)
-            .fontColor(Color.White)
+            .fontColor(DesignTokens.textOnPrimary)
         }
         .width(80)
         .height(80)
@@ -134,7 +133,7 @@ struct ProfilePage {
   }
 
   private navigateToReport(): void {
-    router.pushUrl({ url: 'pages/DailyReportPage' });
+    this.navPath.pushPathByName('DailyReportPage', null);
   }
 
   @Builder
@@ -186,7 +185,7 @@ struct ProfilePage {
         .width('100%')
         .height(48)
         .backgroundColor(DesignTokens.primary)
-        .fontColor(Color.White)
+        .fontColor(DesignTokens.textOnPrimary)
         .borderRadius(DesignTokens.radiusFull)
         .enabled(!this.isSavingReminder)
         .onClick(() => this.saveReminderSettings())
@@ -234,7 +233,7 @@ struct ProfilePage {
       .width('100%')
       .height(48)
       .backgroundColor(DesignTokens.danger)
-      .fontColor(Color.White)
+      .fontColor(DesignTokens.textOnPrimary)
       .borderRadius(DesignTokens.radiusFull)
       .margin({ top: DesignTokens.spacing32 })
       .enabled(!this.isLoggingOut)
@@ -242,28 +241,35 @@ struct ProfilePage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Column() {
-        this.Header()
-
+    NavDestination() {
+      Stack({ alignContent: Alignment.Bottom }) {
         Column() {
-          this.UserCard()
-          this.SettingsCard()
-          this.ReportEntryCard()
-          this.LogoutButton()
+          this.Header()
+
+          Column() {
+            this.UserCard()
+            this.SettingsCard()
+            this.ReportEntryCard()
+            this.LogoutButton()
+          }
+          .width('100%')
+          .height('100%')
+          .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
+          .layoutWeight(1)
         }
         .width('100%')
         .height('100%')
-        .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16 })
-        .layoutWeight(1)
+        .backgroundColor(DesignTokens.bgBase)
+
+        BottomNav({ activeIndex: 3 })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(DesignTokens.bgBase)
-
-      BottomNav({ activeIndex: 3 })
     }
-    .width('100%')
-    .height('100%')
+    .hideTitleBar(true)
+    .onBackPressed(() => {
+      this.navPath.pop();
+      return true;
+    })
   }
 }
