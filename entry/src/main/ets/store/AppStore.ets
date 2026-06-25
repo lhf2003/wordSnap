@@ -1,31 +1,18 @@
-import { WordRecord, DailyReport, UserProfile, AuthToken, HuaweiUserInfo } from '../model/Types';
+import { WordRecord, DailyReport, UserProfile, UserProfileInit, AuthToken, HuaweiUserInfo } from '../model/Types';
 import { ProfileRepository } from '../repository/ProfileRepository';
 import { Context } from '@kit.AbilityKit';
 
-@Observed
+@ObservedV2
 export class AppStore {
   private static instance: AppStore | null = null;
 
-  wordList: WordRecord[] = [];
-  todayWordCount: number = 0;
-  totalWordCount: number = 0;
-  reviewWordCount: number = 0;
-  currentReport: DailyReport | null = null;
-  userProfile: UserProfile = {
-    userId: 'default',
-    isLoggedIn: false,
-    reportReminderTime: '21:00',
-    reportEnabled: true,
-    wearReminderEnabled: false,
-    dailyNewWordGoal: 10,
-    dailyReviewGoal: 20,
-    aiProvider: 'mock',
-    targetLanguage: 'zh',
-    autoPronunciation: false,
-    theme: 'system',
-    updatedAt: Date.now()
-  };
-  isProfileLoaded: boolean = false;
+  @Trace wordList: WordRecord[] = [];
+  @Trace todayWordCount: number = 0;
+  @Trace totalWordCount: number = 0;
+  @Trace reviewWordCount: number = 0;
+  @Trace currentReport: DailyReport | null = null;
+  @Trace userProfile: UserProfile = new UserProfile();
+  @Trace isProfileLoaded: boolean = false;
 
   private profileRepo: ProfileRepository;
 
@@ -58,7 +45,26 @@ export class AppStore {
     try {
       const profile = await this.profileRepo.load(this.context);
       if (profile !== null) {
-        this.userProfile = profile;
+        this.userProfile = new UserProfile({
+          userId: profile.userId,
+          openId: profile.openId,
+          unionId: profile.unionId,
+          nickname: profile.nickname,
+          avatarUrl: profile.avatarUrl,
+          isLoggedIn: profile.isLoggedIn,
+          authToken: profile.authToken,
+          reportReminderTime: profile.reportReminderTime,
+          reportEnabled: profile.reportEnabled,
+          wearReminderEnabled: profile.wearReminderEnabled,
+          dailyNewWordGoal: profile.dailyNewWordGoal,
+          dailyReviewGoal: profile.dailyReviewGoal,
+          aiProvider: profile.aiProvider,
+          aiApiKey: profile.aiApiKey,
+          targetLanguage: profile.targetLanguage,
+          autoPronunciation: profile.autoPronunciation,
+          theme: profile.theme,
+          updatedAt: profile.updatedAt
+        });
       }
       this.isProfileLoaded = true;
     } catch (err) {
@@ -74,6 +80,7 @@ export class AppStore {
       return;
     }
     try {
+      this.userProfile.updatedAt = Date.now();
       await this.profileRepo.save(this.context, this.userProfile);
     } catch (err) {
       const message = err instanceof Error ? err.message : '保存配置失败';
@@ -107,8 +114,7 @@ export class AppStore {
   }
 
   setLoggedInUser(user: HuaweiUserInfo, token: AuthToken): void {
-    const profile = this.userProfile;
-    const updated: UserProfile = {
+    this.userProfile = new UserProfile({
       userId: user.openId,
       openId: user.openId,
       unionId: user.unionId,
@@ -116,66 +122,62 @@ export class AppStore {
       avatarUrl: user.avatarUrl,
       isLoggedIn: true,
       authToken: token,
-      reportReminderTime: profile.reportReminderTime,
-      reportEnabled: profile.reportEnabled,
-      wearReminderEnabled: profile.wearReminderEnabled,
-      dailyNewWordGoal: profile.dailyNewWordGoal,
-      dailyReviewGoal: profile.dailyReviewGoal,
-      aiProvider: profile.aiProvider,
-      aiApiKey: profile.aiApiKey,
-      targetLanguage: profile.targetLanguage,
-      autoPronunciation: profile.autoPronunciation,
-      theme: profile.theme,
+      reportReminderTime: this.userProfile.reportReminderTime,
+      reportEnabled: this.userProfile.reportEnabled,
+      wearReminderEnabled: this.userProfile.wearReminderEnabled,
+      dailyNewWordGoal: this.userProfile.dailyNewWordGoal,
+      dailyReviewGoal: this.userProfile.dailyReviewGoal,
+      aiProvider: this.userProfile.aiProvider,
+      aiApiKey: this.userProfile.aiApiKey,
+      targetLanguage: this.userProfile.targetLanguage,
+      autoPronunciation: this.userProfile.autoPronunciation,
+      theme: this.userProfile.theme,
       updatedAt: Date.now()
-    };
-    this.userProfile = updated;
+    });
     this.saveProfile();
   }
 
   clearUser(): void {
-    const profile = this.userProfile;
-    const updated: UserProfile = {
+    this.userProfile = new UserProfile({
       userId: 'default',
       isLoggedIn: false,
-      reportReminderTime: profile.reportReminderTime,
-      reportEnabled: profile.reportEnabled,
-      wearReminderEnabled: profile.wearReminderEnabled,
-      dailyNewWordGoal: profile.dailyNewWordGoal,
-      dailyReviewGoal: profile.dailyReviewGoal,
-      aiProvider: profile.aiProvider,
-      aiApiKey: profile.aiApiKey,
-      targetLanguage: profile.targetLanguage,
-      autoPronunciation: profile.autoPronunciation,
-      theme: profile.theme,
+      reportReminderTime: this.userProfile.reportReminderTime,
+      reportEnabled: this.userProfile.reportEnabled,
+      wearReminderEnabled: this.userProfile.wearReminderEnabled,
+      dailyNewWordGoal: this.userProfile.dailyNewWordGoal,
+      dailyReviewGoal: this.userProfile.dailyReviewGoal,
+      aiProvider: this.userProfile.aiProvider,
+      aiApiKey: this.userProfile.aiApiKey,
+      targetLanguage: this.userProfile.targetLanguage,
+      autoPronunciation: this.userProfile.autoPronunciation,
+      theme: this.userProfile.theme,
       updatedAt: Date.now()
-    };
-    this.userProfile = updated;
+    });
     this.saveProfile();
   }
 
-  updateUserProfile(partial: Partial<UserProfile>): void {
-    const profile = this.userProfile;
-    const updated: UserProfile = {
-      userId: partial.userId ?? profile.userId,
-      openId: partial.openId ?? profile.openId,
-      unionId: partial.unionId ?? profile.unionId,
-      nickname: partial.nickname ?? profile.nickname,
-      avatarUrl: partial.avatarUrl ?? profile.avatarUrl,
-      isLoggedIn: partial.isLoggedIn ?? profile.isLoggedIn,
-      authToken: partial.authToken ?? profile.authToken,
-      reportReminderTime: partial.reportReminderTime ?? profile.reportReminderTime,
-      reportEnabled: partial.reportEnabled ?? profile.reportEnabled,
-      wearReminderEnabled: partial.wearReminderEnabled ?? profile.wearReminderEnabled,
-      dailyNewWordGoal: partial.dailyNewWordGoal ?? profile.dailyNewWordGoal,
-      dailyReviewGoal: partial.dailyReviewGoal ?? profile.dailyReviewGoal,
-      aiProvider: partial.aiProvider ?? profile.aiProvider,
-      aiApiKey: partial.aiApiKey ?? profile.aiApiKey,
-      targetLanguage: partial.targetLanguage ?? profile.targetLanguage,
-      autoPronunciation: partial.autoPronunciation ?? profile.autoPronunciation,
-      theme: partial.theme ?? profile.theme,
+  updateUserProfile(partial: UserProfileInit): void {
+    const current = this.userProfile;
+    this.userProfile = new UserProfile({
+      userId: partial.userId ?? current.userId,
+      openId: partial.openId ?? current.openId,
+      unionId: partial.unionId ?? current.unionId,
+      nickname: partial.nickname ?? current.nickname,
+      avatarUrl: partial.avatarUrl ?? current.avatarUrl,
+      isLoggedIn: partial.isLoggedIn ?? current.isLoggedIn,
+      authToken: partial.authToken ?? current.authToken,
+      reportReminderTime: partial.reportReminderTime ?? current.reportReminderTime,
+      reportEnabled: partial.reportEnabled ?? current.reportEnabled,
+      wearReminderEnabled: partial.wearReminderEnabled ?? current.wearReminderEnabled,
+      dailyNewWordGoal: partial.dailyNewWordGoal ?? current.dailyNewWordGoal,
+      dailyReviewGoal: partial.dailyReviewGoal ?? current.dailyReviewGoal,
+      aiProvider: partial.aiProvider ?? current.aiProvider,
+      aiApiKey: partial.aiApiKey ?? current.aiApiKey,
+      targetLanguage: partial.targetLanguage ?? current.targetLanguage,
+      autoPronunciation: partial.autoPronunciation ?? current.autoPronunciation,
+      theme: partial.theme ?? current.theme,
       updatedAt: Date.now()
-    };
-    this.userProfile = updated;
+    });
     this.saveProfile();
   }
 }

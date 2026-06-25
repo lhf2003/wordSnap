@@ -1,5 +1,5 @@
-import { WordService, AddWordParams } from '../service/WordService';
-import { AppStore } from '../store/AppStore';
+import { WordRecord } from '../model/Types';
+import { QuickCaptureViewModel } from '../viewmodel/QuickCaptureViewModel';
 import { LaunchState } from '../store/LaunchState';
 import { DesignTokens } from '../components/DesignTokens';
 import { KeyCode } from '@kit.InputKit';
@@ -13,20 +13,8 @@ interface BackKeyEvent {
 
 @ComponentV2
 export struct QuickCapturePage {
-  @Local wordInput: string = '';
-  @Local translationInput: string = '';
-  @Local selectedTags: string[] = [];
-  @Local isSaving: boolean = false;
-  @Local showSuccess: boolean = false;
-  @Local hasSaved: boolean = false;
+  @Local viewModel: QuickCaptureViewModel = new QuickCaptureViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
-
-  private wordService: WordService = new WordService();
-  private successTimer: number = -1;
-
-  private readonly presetTags: string[] = [
-    '物品', '情绪', '动作', '场景', '食物', '动物', '植物', '日常'
-  ];
 
   async aboutToAppear() {
     const shortcutStart = LaunchState.getInstance().getShortcutStartTime();
@@ -39,7 +27,7 @@ export struct QuickCapturePage {
       if (context === undefined) {
         throw new Error('无法获取应用上下文');
       }
-      await this.wordService.init(context);
+      await this.viewModel.init(context);
     } catch (err) {
       const message = err instanceof Error ? err.message : '初始化失败';
       console.error(TAG, 'QuickCapturePage init failed: ' + message);
@@ -55,6 +43,10 @@ export struct QuickCapturePage {
     }
   }
 
+  aboutToDisappear() {
+    this.viewModel.clearTimer();
+  }
+
   private showToast(message: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message });
@@ -63,76 +55,17 @@ export struct QuickCapturePage {
     }
   }
 
-  aboutToDisappear() {
-    if (this.successTimer !== -1) {
-      clearTimeout(this.successTimer);
-      this.successTimer = -1;
-    }
-  }
-
-  async saveWord() {
-    const word = this.wordInput.trim();
-    if (!word) {
+  private async saveWord() {
+    const record = await this.viewModel.saveWord();
+    if (record === null) {
       this.showToast('请输入英语单词或短语');
       return;
     }
-
-    this.isSaving = true;
-    this.showSuccess = false;
-    try {
-      const rawTranslations = this.translationInput.trim();
-      let translations: string[] | undefined = undefined;
-      if (rawTranslations.length > 0) {
-        translations = rawTranslations.split(/[,，;；]/)
-          .map((t: string): string => t.trim())
-          .filter((t: string): boolean => t.length > 0);
-      }
-
-      const params: AddWordParams = {
-        word: word,
-        translation: translations,
-        source: 'manual',
-        tags: this.selectedTags
-      };
-      const record = await this.wordService.addWord(params);
-
-      AppStore.getInstance().addWordToList(record);
-      this.hasSaved = true;
-
-      this.showSuccess = true;
-      this.wordInput = '';
-      this.translationInput = '';
-      this.selectedTags = [];
-
-      this.showToast('已保存: ' + record.word);
-
-      if (this.successTimer !== -1) {
-        clearTimeout(this.successTimer);
-      }
-      this.successTimer = setTimeout(() => {
-        this.showSuccess = false;
-        this.successTimer = -1;
-      }, 1500);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '保存失败';
-      console.error(TAG, 'Save word failed: ' + message);
-      this.showToast('保存失败: ' + message);
-      this.showSuccess = false;
-    } finally {
-      this.isSaving = false;
-    }
-  }
-
-  toggleTag(tag: string) {
-    if (this.selectedTags.includes(tag)) {
-      this.selectedTags = this.selectedTags.filter((t: string): boolean => t !== tag);
-    } else {
-      this.selectedTags = [...this.selectedTags, tag];
-    }
+    this.showToast('已保存: ' + record.word);
   }
 
   private goBack(): void {
-    if (this.hasSaved) {
+    if (this.viewModel.hasSaved) {
       this.navPath.pop({ refresh: true });
     } else {
       this.navPath.pop();
@@ -168,7 +101,7 @@ export struct QuickCapturePage {
             .fontColor(DesignTokens.textPrimary)
             .layoutWeight(1)
 
-          if (this.showSuccess) {
+          if (this.viewModel.showSuccess) {
             Text('已保存')
               .fontSize(DesignTokens.font14)
               .fontColor(DesignTokens.success)
@@ -185,7 +118,7 @@ export struct QuickCapturePage {
             .width('100%')
             .margin({ bottom: 8 })
 
-          TextInput({ placeholder: '输入英语单词或短语...', text: this.wordInput })
+          TextInput({ placeholder: '输入英语单词或短语...', text: this.viewModel.wordInput })
             .id(INPUT_ID)
             .width('100%')
             .height(56)
@@ -195,7 +128,7 @@ export struct QuickCapturePage {
             .placeholderColor(DesignTokens.textTertiary)
             .defaultFocus(true)
             .onChange((value: string) => {
-              this.wordInput = value;
+              this.viewModel.wordInput = value;
             })
             .onSubmit(() => this.saveWord())
             .onKeyPreIme((event: BackKeyEvent): boolean => this.handleBackKey(event))
@@ -210,7 +143,7 @@ export struct QuickCapturePage {
             .width('100%')
             .margin({ bottom: 8 })
 
-          TextInput({ placeholder: '输入中文释义，多个用逗号分隔...', text: this.translationInput })
+          TextInput({ placeholder: '输入中文释义，多个用逗号分隔...', text: this.viewModel.translationInput })
             .width('100%')
             .height(56)
             .backgroundColor(DesignTokens.bgInput)
@@ -218,7 +151,7 @@ export struct QuickCapturePage {
             .fontSize(DesignTokens.font16)
             .placeholderColor(DesignTokens.textTertiary)
             .onChange((value: string) => {
-              this.translationInput = value;
+              this.viewModel.translationInput = value;
             })
             .onSubmit(() => this.saveWord())
             .onKeyPreIme((event: BackKeyEvent): boolean => this.handleBackKey(event))
@@ -234,31 +167,33 @@ export struct QuickCapturePage {
             .margin({ bottom: 12 })
 
           Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-            ForEach(this.presetTags, (tag: string) => {
-              Text(tag)
-                .fontSize(DesignTokens.font16)
-                .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-                .backgroundColor(
-                  this.selectedTags.includes(tag) ? DesignTokens.success : DesignTokens.bgInput
-                )
-                .fontColor(
-                  this.selectedTags.includes(tag) ? DesignTokens.textOnPrimary : DesignTokens.textSecondary
-                )
-                .borderRadius(DesignTokens.radiusFull)
-                .margin({ right: 12, bottom: 12 })
-                .onClick(() => this.toggleTag(tag))
-            }, (tag: string) => tag)
+            Repeat<string>(this.viewModel.presetTags)
+              .each((obj: RepeatItem<string>) => {
+                Text(obj.item)
+                  .fontSize(DesignTokens.font16)
+                  .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+                  .backgroundColor(
+                    this.viewModel.selectedTags.includes(obj.item) ? DesignTokens.success : DesignTokens.bgInput
+                  )
+                  .fontColor(
+                    this.viewModel.selectedTags.includes(obj.item) ? DesignTokens.textOnPrimary : DesignTokens.textSecondary
+                  )
+                  .borderRadius(DesignTokens.radiusFull)
+                  .margin({ right: 12, bottom: 12 })
+                  .onClick(() => this.viewModel.toggleTag(obj.item))
+              })
+              .key((item: string) => item)
           }
           .width('100%')
         }
         .width('90%')
         .margin({ bottom: 32 })
 
-        Button(this.isSaving ? '保存中...' : '保存')
+        Button(this.viewModel.isSaving ? '保存中...' : '保存')
           .width('90%')
           .height(56)
-          .backgroundColor(this.isSaving ? DesignTokens.textTertiary : DesignTokens.primary)
-          .enabled(!this.isSaving)
+          .backgroundColor(this.viewModel.isSaving ? DesignTokens.textTertiary : DesignTokens.primary)
+          .enabled(!this.viewModel.isSaving)
           .onClick(() => this.saveWord())
 
         Blank()

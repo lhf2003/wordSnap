@@ -1,9 +1,8 @@
 import { WordRecord, WordDetailParam } from '../model/Types';
-import { WordService } from '../service/WordService';
-import { AppStore } from '../store/AppStore';
+import { HomeViewModel } from '../viewmodel/HomeViewModel';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
-import { TimeUtils } from '../utils/TimeUtils';
+import { HomeWordCard } from '../components/HomeWordCard';
 import { Context } from '@kit.AbilityKit';
 
 @Styles
@@ -16,11 +15,6 @@ function pressedCard() {
   .opacity(0.92)
 }
 
-@Styles
-function pressedText() {
-  .opacity(0.7)
-}
-
 interface MarginOption {
   top?: number;
   bottom?: number;
@@ -30,14 +24,7 @@ interface MarginOption {
 
 @ComponentV2
 export struct HomePage {
-  private wordService: WordService = new WordService();
-  @Local wordList: WordRecord[] = [];
-  @Local todayCount: number = 0;
-  @Local totalCount: number = 0;
-  @Local reviewCount: number = 0;
-  @Local isLoading: boolean = true;
-  @Local errorMessage: string = '';
-  @Local userName: string = '朋友';
+  @Local viewModel: HomeViewModel = new HomeViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private isInitializing: boolean = false;
   private isInitialized: boolean = false;
@@ -52,25 +39,15 @@ export struct HomePage {
       this.isFirstShown = false;
       return;
     }
-    if (this.isInitializing || this.isLoading) {
+    if (this.isInitializing || this.viewModel.isLoading) {
       return;
     }
     if (!this.isInitialized) {
       await this.initialize();
       return;
     }
-    await this.loadData();
-  }
-
-  private async initAppStore(context: Context): Promise<void> {
-    const store = AppStore.getInstance();
-    store.setContext(context);
-    await store.load();
-    this.userName = store.userProfile.nickname?.trim() || '朋友';
-  }
-
-  private async initWordService(context: Context): Promise<void> {
-    await this.wordService.init(context);
+    this.viewModel.refreshUserName();
+    await this.viewModel.loadData();
   }
 
   private async initialize(): Promise<void> {
@@ -78,44 +55,22 @@ export struct HomePage {
       return;
     }
     this.isInitializing = true;
+    this.viewModel.isLoading = false;
     try {
       const context = this.getUIContext().getHostContext();
       if (context === undefined) {
         throw new Error('无法获取应用上下文');
       }
-      await this.initAppStore(context);
-      await this.initWordService(context);
-      await this.loadData();
+      await this.viewModel.init(context);
+      await this.viewModel.loadData();
       this.isInitialized = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载数据失败';
-      console.error('Failed to load index data: ' + message);
-      this.errorMessage = message;
-      this.isLoading = false;
+      console.error('HomePage initialize failed: ' + message);
+      this.viewModel.errorMessage = message;
+      this.viewModel.isLoading = false;
     } finally {
       this.isInitializing = false;
-    }
-  }
-
-  async loadData() {
-    console.info('HomePage loadData start');
-    this.isLoading = true;
-    this.errorMessage = '';
-    try {
-      const todayWords = await this.wordService.getTodayWords();
-      const statistics = await this.wordService.getStatistics();
-      this.wordList = todayWords;
-      this.todayCount = statistics.todayWords;
-      this.totalCount = statistics.totalWords;
-      this.reviewCount = statistics.reviewWords;
-      AppStore.getInstance().setStatistics(statistics.todayWords, statistics.totalWords, statistics.reviewWords);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '加载数据失败';
-      console.error('Failed to load data:', message);
-      this.errorMessage = message;
-    } finally {
-      this.isLoading = false;
-      console.info('HomePage loadData finish, wordList.length=' + this.wordList.length);
     }
   }
 
@@ -125,28 +80,12 @@ export struct HomePage {
   }
 
   private navigateToCapture(): void {
-    this.navPath.pushPathByName('QuickCapturePage', null, (popInfo: PopInfo) => {
-      const result = popInfo.result as Record<string, boolean>;
-      console.info('HomePage onPop QuickCapture result=' + JSON.stringify(result));
-      if (result.refresh && !this.isLoading) {
-        this.loadData();
-      }
-    });
-  }
-
-  private navigateToLibrary(): void {
-    this.navPath.replacePath({ name: 'LibraryPage' });
+    this.navPath.pushPathByName('QuickCapturePage', null);
   }
 
   private navigateToWordDetail(word: WordRecord): void {
     const param: WordDetailParam = { wordId: word.id };
-    this.navPath.pushPathByName('WordDetailPage', param, (popInfo: PopInfo) => {
-      const result = popInfo.result as Record<string, boolean>;
-      console.info('HomePage onPop WordDetail result=' + JSON.stringify(result));
-      if (result.refresh && !this.isLoading) {
-        this.loadData();
-      }
-    });
+    this.navPath.pushPathByName('WordDetailPage', param);
   }
 
   private greetingText(): string {
@@ -157,7 +96,7 @@ export struct HomePage {
     } else if (hour >= 18) {
       prefix = '晚上好';
     }
-    return `${prefix}，${this.userName}`;
+    return `${prefix}，${this.viewModel.userName}`;
   }
 
   private greetingSubtitle(): string {
@@ -173,50 +112,6 @@ export struct HomePage {
       return '午后看到的，用英语怎么说？';
     }
     return '睡前回顾今天学到的新词';
-  }
-
-  private statusLabel(proficiency: number): string {
-    if (proficiency >= 5) {
-      return '已掌握';
-    }
-    if (proficiency < 3) {
-      return '待复习';
-    }
-    return '学习中';
-  }
-
-  private statusIcon(proficiency: number): string {
-    if (proficiency >= 5) {
-      return '✓';
-    }
-    if (proficiency < 3) {
-      return '↻';
-    }
-    return '•';
-  }
-
-  private statusColor(proficiency: number): string {
-    if (proficiency >= 5) {
-      return DesignTokens.success;
-    }
-    if (proficiency < 3) {
-      return DesignTokens.warning;
-    }
-    return DesignTokens.primary;
-  }
-
-  private statusSurface(proficiency: number): string {
-    if (proficiency >= 5) {
-      return DesignTokens.successSurface;
-    }
-    if (proficiency < 3) {
-      return DesignTokens.warningSurface;
-    }
-    return DesignTokens.primarySurface;
-  }
-
-  private wordKey(word: WordRecord): string {
-    return `${word.id}-${word.word}-${word.translation.join('；')}-${word.exampleSentence ?? ''}-${word.proficiency}`;
   }
 
   @Builder
@@ -280,9 +175,9 @@ export struct HomePage {
   }
 
   @Builder
-  StatCard(label: string, value: string, color: string, margin?: MarginOption) {
+  StatCard(label: string, value: number, color: string, margin?: MarginOption) {
     Column() {
-      Text(value)
+      Text(value.toString())
         .fontSize(DesignTokens.font28)
         .fontWeight(FontWeight.Bold)
         .fontColor(color)
@@ -304,11 +199,11 @@ export struct HomePage {
   @Builder
   StatsRow() {
     Row() {
-      this.StatCard('今日', this.todayCount.toString(), DesignTokens.success,
+      this.StatCard('今日', this.viewModel.todayCount, DesignTokens.success,
         { right: DesignTokens.spacing8 })
-      this.StatCard('累计', this.totalCount.toString(), DesignTokens.primary,
+      this.StatCard('累计', this.viewModel.totalCount, DesignTokens.primary,
         { left: DesignTokens.spacing8, right: DesignTokens.spacing8 })
-      this.StatCard('待复习', this.reviewCount.toString(), DesignTokens.warning,
+      this.StatCard('待复习', this.viewModel.reviewCount, DesignTokens.warning,
         { left: DesignTokens.spacing8 })
     }
     .width('100%')
@@ -378,68 +273,6 @@ export struct HomePage {
   }
 
   @Builder
-  StatusBadge(word: WordRecord) {
-    Row() {
-      Text(this.statusIcon(word.proficiency))
-        .fontSize(DesignTokens.font10)
-        .fontColor(this.statusColor(word.proficiency))
-        .margin({ right: DesignTokens.spacing4 })
-      Text(this.statusLabel(word.proficiency))
-        .fontSize(DesignTokens.font10)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.statusColor(word.proficiency))
-    }
-    .backgroundColor(this.statusSurface(word.proficiency))
-    .padding({ left: DesignTokens.spacing8, right: DesignTokens.spacing8, top: DesignTokens.spacing4, bottom: DesignTokens.spacing4 })
-    .borderRadius(DesignTokens.radiusFull)
-  }
-
-  @Builder
-  WordCard(word: WordRecord, isFirst: boolean, isLast: boolean) {
-    Row() {
-      Column() {
-        Row() {
-          Text(word.word)
-            .fontSize(isFirst ? DesignTokens.font18 : DesignTokens.font16)
-            .fontWeight(isFirst ? FontWeight.Bold : FontWeight.Medium)
-            .fontColor(DesignTokens.textPrimary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          Text(word.translation.length > 0 ? word.translation.join('；') : '暂无释义')
-            .fontSize(DesignTokens.font14)
-            .fontColor(DesignTokens.textSecondary)
-            .margin({ left: DesignTokens.spacing8 })
-            .layoutWeight(1)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        Text(TimeUtils.formatRelativeTime(word.createdAt))
-          .fontSize(DesignTokens.font10)
-          .fontColor(DesignTokens.textTertiary)
-          .margin({ top: DesignTokens.spacing4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-
-      this.StatusBadge(word)
-    }
-    .width('100%')
-    .padding({ left: DesignTokens.spacing16, right: DesignTokens.spacing16, top: DesignTokens.spacing12, bottom: DesignTokens.spacing12 })
-    .backgroundColor(Color.Transparent)
-    .systemMaterial(isFirst ? DesignTokens.materialRegular : DesignTokens.materialThin)
-    .borderRadius(DesignTokens.radius20)
-    .margin({ bottom: isLast ? 0 : DesignTokens.spacing8 })
-    .stateStyles({
-      pressed: pressedCard
-    })
-    .onClick(() => this.navigateToWordDetail(word))
-  }
-
-  @Builder
   SectionHeader() {
     Row() {
       Text('最近记录')
@@ -472,21 +305,21 @@ export struct HomePage {
     Column() {
       this.SectionHeader()
 
-      if (this.isLoading) {
+      if (this.viewModel.isLoading) {
         Column() {
           this.LoadingState()
         }
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-      } else if (this.errorMessage.length > 0) {
+      } else if (this.viewModel.errorMessage.length > 0) {
         Column() {
           this.ErrorState()
         }
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-      } else if (this.wordList.length === 0) {
+      } else if (this.viewModel.wordList.length === 0) {
         Column() {
           this.EmptyState()
         }
@@ -495,11 +328,18 @@ export struct HomePage {
         .justifyContent(FlexAlign.Center)
       } else {
         List() {
-          ForEach(this.wordList, (word: WordRecord, index: number) => {
-            ListItem() {
-              this.WordCard(word, index === 0, index === this.wordList.length - 1)
-            }
-          }, (word: WordRecord) => this.wordKey(word))
+          Repeat<WordRecord>(this.viewModel.wordList)
+            .each((obj: RepeatItem<WordRecord>) => {
+              ListItem() {
+                HomeWordCard({
+                  word: obj.item,
+                  isFirst: obj.index === 0,
+                  isLast: obj.index === this.viewModel.wordList.length - 1,
+                  onCardClick: () => this.navigateToWordDetail(obj.item)
+                })
+              }
+            })
+            .key((item: WordRecord) => item.id + '_' + item.word + '_' + item.translation.join(',') + '_' + item.proficiency + '_' + item.createdAt)
         }
         .width('100%')
         .layoutWeight(1)
@@ -524,7 +364,7 @@ export struct HomePage {
         .fontSize(DesignTokens.font16)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.danger)
-      Text(this.errorMessage)
+      Text(this.viewModel.errorMessage)
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .margin({ top: DesignTokens.spacing8 })

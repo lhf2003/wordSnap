@@ -1,7 +1,8 @@
 import { WordRecord, WordDetailParam } from '../model/Types';
-import { WordService } from '../service/WordService';
+import { LibraryViewModel, FilterTab } from '../viewmodel/LibraryViewModel';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
+import { LibraryWordCard } from '../components/LibraryWordCard';
 import { TimeUtils } from '../utils/TimeUtils';
 
 @Styles
@@ -9,44 +10,33 @@ function pressedLibraryCard() {
   .opacity(0.92)
 }
 
-type FilterTab = 'all' | 'mastered' | 'reviewing' | 'new';
-
 @ComponentV2
 export struct LibraryPage {
-  private wordService: WordService = new WordService();
-  @Local words: WordRecord[] = [];
-  @Local filteredWords: WordRecord[] = [];
-  @Local searchQuery: string = '';
-  @Local activeTab: FilterTab = 'all';
-  @Local isLoading: boolean = true;
-  @Local errorMessage: string = '';
+  @Local viewModel: LibraryViewModel = new LibraryViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
   private isInitializing: boolean = false;
   private isInitialized: boolean = false;
+  private isFirstShown: boolean = true;
 
   async aboutToAppear() {
     await this.initialize();
   }
 
   async onShown() {
+    console.info('LibraryPage onShown isFirstShown=' + this.isFirstShown + ' isInitializing=' + this.isInitializing + ' isLoading=' + this.viewModel.isLoading + ' isInitialized=' + this.isInitialized);
+    if (this.isFirstShown) {
+      this.isFirstShown = false;
+      return;
+    }
     if (this.isInitializing) {
+      console.info('LibraryPage onShown skipped due to initializing');
       return;
     }
     if (!this.isInitialized) {
       await this.initialize();
       return;
     }
-    if (!this.isLoading) {
-      await this.loadData();
-    }
-  }
-
-  private async initWordService(): Promise<void> {
-    const context = this.getUIContext().getHostContext();
-    if (context === undefined) {
-      throw new Error('无法获取应用上下文');
-    }
-    await this.wordService.init(context);
+    await this.viewModel.loadData();
   }
 
   private async initialize(): Promise<void> {
@@ -54,73 +44,35 @@ export struct LibraryPage {
       return;
     }
     this.isInitializing = true;
-    this.isLoading = false;
+    this.viewModel.isLoading = false;
     try {
-      await this.initWordService();
-      await this.loadData();
+      const context = this.getUIContext().getHostContext();
+      if (context === undefined) {
+        throw new Error('无法获取应用上下文');
+      }
+      await this.viewModel.init(context);
+      await this.viewModel.loadData();
       this.isInitialized = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载数据失败';
-      console.error('Failed to load library data: ' + message);
-      this.errorMessage = message;
-      this.isLoading = false;
+      console.error('LibraryPage initialize failed: ' + message);
+      this.viewModel.errorMessage = message;
+      this.viewModel.isLoading = false;
     } finally {
       this.isInitializing = false;
     }
   }
 
-  private async loadData(): Promise<void> {
-    if (this.isLoading) {
-      return;
-    }
-    this.isLoading = true;
-    this.errorMessage = '';
-    try {
-      this.words = await this.wordService.getAllWords();
-      this.applyFilters();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '加载数据失败';
-      console.error('Failed to load library words:', message);
-      this.errorMessage = message;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  private applyFilters(): void {
-    let result = this.words;
-
-    if (this.activeTab === 'mastered') {
-      result = result.filter(w => w.proficiency >= 5);
-    } else if (this.activeTab === 'reviewing') {
-      result = result.filter(w => w.proficiency >= 1 && w.proficiency <= 4);
-    } else if (this.activeTab === 'new') {
-      result = result.filter(w => w.proficiency === 0);
-    }
-
-    const query = this.searchQuery.trim().toLowerCase();
-    if (query.length > 0) {
-      result = result.filter(w =>
-        w.word.toLowerCase().includes(query) ||
-        w.translation.some(t => t.toLowerCase().includes(query)) ||
-        w.tags.some(t => t.toLowerCase().includes(query))
-      );
-    }
-
-    this.filteredWords = result;
-  }
-
   private onSearchChange(value: string): void {
-    this.searchQuery = value;
-    this.applyFilters();
+    this.viewModel.setSearchQuery(value);
   }
 
   private onTabChange(tab: FilterTab): void {
-    this.activeTab = tab;
-    this.applyFilters();
+    this.viewModel.setActiveTab(tab);
   }
 
   private navigateToDetail(word: WordRecord): void {
+    console.info('LibraryPage navigateToDetail wordId=' + word.id);
     const param: WordDetailParam = { wordId: word.id };
     this.navPath.pushPathByName('WordDetailPage', param);
   }
@@ -135,30 +87,6 @@ export struct LibraryPage {
     return DesignTokens.primary;
   }
 
-  private statusLabel(word: WordRecord): string {
-    if (word.proficiency >= 5) {
-      return 'Mastered';
-    }
-    if (word.proficiency >= 1) {
-      return 'Reviewing';
-    }
-    return 'New';
-  }
-
-  private shortDefinition(word: WordRecord): string {
-    if (word.definition && word.definition.length > 0) {
-      return word.definition;
-    }
-    if (word.translation.length > 0) {
-      return word.translation.join('；');
-    }
-    return word.exampleSentence ?? '暂无释义';
-  }
-
-  private wordKey(word: WordRecord): string {
-    return `${word.id}-${word.word}-${this.shortDefinition(word)}-${word.proficiency}-${word.createdAt}`;
-  }
-
   @Builder
   Header() {
     Row() {
@@ -168,7 +96,7 @@ export struct LibraryPage {
         .fontColor(DesignTokens.textPrimary)
         .layoutWeight(1)
 
-      Text(`${this.words.length} WORDS`)
+      Text(`${this.viewModel.words.length} WORDS`)
         .fontSize(DesignTokens.font12)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.textTertiary)
@@ -233,7 +161,7 @@ export struct LibraryPage {
       Row() {
         this.SearchIcon()
 
-        TextInput({ placeholder: 'Search captures...', text: this.searchQuery })
+        TextInput({ placeholder: 'Search captures...', text: this.viewModel.searchQuery })
           .placeholderColor(DesignTokens.textTertiary)
           .fontSize(DesignTokens.font14)
           .fontColor(DesignTokens.textPrimary)
@@ -283,63 +211,11 @@ export struct LibraryPage {
     Button(label)
       .fontSize(DesignTokens.font12)
       .fontWeight(FontWeight.Medium)
-      .fontColor(this.activeTab === tab ? DesignTokens.textOnPrimary : DesignTokens.textSecondary)
-      .backgroundColor(this.activeTab === tab ? DesignTokens.primary : DesignTokens.primarySurfaceSubtle)
+      .fontColor(this.viewModel.activeTab === tab ? DesignTokens.textOnPrimary : DesignTokens.textSecondary)
+      .backgroundColor(this.viewModel.activeTab === tab ? DesignTokens.primary : DesignTokens.primarySurfaceSubtle)
       .borderRadius(DesignTokens.radiusFull)
       .padding({ left: 16, right: 16, top: 8, bottom: 8 })
       .onClick(() => this.onTabChange(tab))
-  }
-
-  @Builder
-  WordCard(word: WordRecord) {
-    Column() {
-      Row() {
-        Blank().layoutWeight(1)
-
-        Row()
-          .width(8)
-          .height(8)
-          .backgroundColor(this.statusColor(word))
-          .borderRadius(DesignTokens.radiusFull)
-      }
-      .width('100%')
-      .margin({ bottom: DesignTokens.spacing12 })
-
-      Text(word.word)
-        .fontSize(DesignTokens.font18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.textPrimary)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width('100%')
-
-      Text(this.shortDefinition(word))
-        .fontSize(DesignTokens.font12)
-        .fontColor(DesignTokens.textSecondary)
-        .margin({ top: 4 })
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width('100%')
-
-      Blank().layoutWeight(1)
-
-      Text(TimeUtils.formatRelativeTime(word.createdAt).toUpperCase())
-        .fontSize(DesignTokens.font10)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(DesignTokens.textTertiary)
-        .width('100%')
-    }
-    .width('100%')
-    .aspectRatio(1)
-    .padding(DesignTokens.spacing16)
-    .backgroundColor(Color.Transparent)
-    .systemMaterial(DesignTokens.materialThin)
-    .borderRadius(DesignTokens.radius20)
-    .alignItems(HorizontalAlign.Start)
-    .stateStyles({
-      pressed: pressedLibraryCard
-    })
-    .onClick(() => this.navigateToDetail(word))
   }
 
   @Builder
@@ -384,17 +260,22 @@ export struct LibraryPage {
               this.SearchBar()
               this.FilterTabs()
 
-              if (this.isLoading) {
+              if (this.viewModel.isLoading) {
                 this.LoadingState()
-              } else if (this.filteredWords.length === 0) {
+              } else if (this.viewModel.filteredWords.length === 0) {
                 this.EmptyState()
               } else {
                 Grid() {
-                  ForEach(this.filteredWords, (word: WordRecord) => {
-                    GridItem() {
-                      this.WordCard(word)
-                    }
-                  }, (word: WordRecord) => this.wordKey(word))
+                  Repeat<WordRecord>(this.viewModel.filteredWords)
+                    .each((obj: RepeatItem<WordRecord>) => {
+                      GridItem() {
+                        LibraryWordCard({
+                          word: obj.item,
+                          onCardClick: () => this.navigateToDetail(obj.item)
+                        })
+                      }
+                    })
+                    .key((item: WordRecord) => item.id + '_' + item.word + '_' + (item.definition ?? item.translation.join(',')) + '_' + (item.exampleSentence ?? '') + '_' + item.proficiency + '_' + item.createdAt)
                 }
                 .columnsTemplate('1fr 1fr')
                 .columnsGap(DesignTokens.spacing12)
@@ -422,6 +303,7 @@ export struct LibraryPage {
       .height('100%')
     }
     .hideTitleBar(true)
+    .onShown(() => this.onShown())
     .onBackPressed(() => {
       this.navPath.pop();
       return true;

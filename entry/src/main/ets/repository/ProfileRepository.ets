@@ -1,6 +1,6 @@
 import { relationalStore } from '@kit.ArkData';
 import { Context } from '@kit.AbilityKit';
-import { UserProfile } from '../model/Types';
+import { UserProfile, AuthToken } from '../model/Types';
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
   name: 'english_assistant_profile.db',
@@ -103,18 +103,18 @@ export class ProfileRepository {
     const refreshToken: string | undefined = getOptString('refresh_token');
     const tokenExpiresAt: number = getLong('token_expires_at');
 
-    return {
+    return new UserProfile({
       userId: getString('user_id'),
       openId: getOptString('open_id'),
       unionId: getOptString('union_id'),
       nickname: getOptString('nickname'),
       avatarUrl: getOptString('avatar_url'),
       isLoggedIn: isLoggedIn,
-      authToken: accessToken !== undefined && refreshToken !== undefined && tokenExpiresAt > 0 ? {
+      authToken: accessToken !== undefined && refreshToken !== undefined && tokenExpiresAt > 0 ? new AuthToken({
         accessToken: accessToken,
         refreshToken: refreshToken,
         expiresAt: tokenExpiresAt
-      } : undefined,
+      }) : undefined,
       reportReminderTime: getString('report_reminder_time'),
       reportEnabled: getLong('report_enabled') !== 0,
       wearReminderEnabled: getLong('wear_reminder_enabled') !== 0,
@@ -126,7 +126,7 @@ export class ProfileRepository {
       autoPronunciation: getLong('auto_pronunciation') !== 0,
       theme: this.normalizeTheme(getString('theme')),
       updatedAt: getLong('updated_at')
-    };
+    });
   }
 
   async save(context: Context, profile: UserProfile): Promise<void> {

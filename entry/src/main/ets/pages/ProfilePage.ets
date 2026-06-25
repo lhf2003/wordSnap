@@ -1,47 +1,49 @@
-import { AuthService } from '../service/auth/AuthService';
-import { AppStore } from '../store/AppStore';
+import { ProfileViewModel } from '../viewmodel/ProfileViewModel';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
-import { ReportScheduler } from '../service/ReportScheduler';
-
-const BUNDLE_NAME = 'com.lhf.worksnap';
-const ENTRY_ABILITY_NAME = 'EntryAbility';
 
 @ComponentV2
 export struct ProfilePage {
-  @Local nickname: string = '';
-  @Local avatarUrl: string = '';
-  @Local isLoggingOut: boolean = false;
-  @Local reportEnabled: boolean = true;
-  @Local reportTime: string = '21:00';
-  @Local isSavingReminder: boolean = false;
+  @Local viewModel: ProfileViewModel = new ProfileViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
-  private authService: AuthService = AuthService.getInstance();
-  private reportScheduler: ReportScheduler = new ReportScheduler();
 
   aboutToAppear(): void {
-    const profile = AppStore.getInstance().userProfile;
-    this.nickname = profile.nickname ?? '华为用户';
-    this.avatarUrl = profile.avatarUrl ?? '';
-    this.reportEnabled = profile.reportEnabled;
-    this.reportTime = profile.reportReminderTime;
     const context = this.getUIContext().getHostContext();
     if (context !== undefined) {
-      this.reportScheduler.setContext(context);
+      this.viewModel.init(context);
+    }
+  }
+
+  onShown(): void {
+    this.viewModel.refreshProfile();
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (e) {
+      console.warn('ProfilePage showToast failed: ' + (e instanceof Error ? e.message : 'unknown'));
     }
   }
 
   private async logout(): Promise<void> {
-    this.isLoggingOut = true;
-    try {
-      await this.authService.signOut();
+    const success = await this.viewModel.logout();
+    if (success) {
       this.navPath.replacePath({ name: 'LoginPage' });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '退出失败';
-      console.error('ProfilePage logout failed: ' + message);
-    } finally {
-      this.isLoggingOut = false;
+    } else {
+      this.showToast('退出失败');
     }
+  }
+
+  private async saveReminderSettings(): Promise<void> {
+    const message = await this.viewModel.saveReminderSettings();
+    if (message !== null) {
+      this.showToast(message);
+    }
+  }
+
+  private navigateToReport(): void {
+    this.navPath.pushPathByName('DailyReportPage', null);
   }
 
   @Builder
@@ -57,14 +59,14 @@ export struct ProfilePage {
   @Builder
   UserCard() {
     Column() {
-      if (this.avatarUrl.length > 0) {
-        Image(this.avatarUrl)
+      if (this.viewModel.avatarUrl.length > 0) {
+        Image(this.viewModel.avatarUrl)
           .width(80)
           .height(80)
           .borderRadius(DesignTokens.radiusFull)
       } else {
         Column() {
-          Text(this.nickname.substring(0, 1))
+          Text(this.viewModel.nickname.substring(0, 1))
             .fontSize(DesignTokens.font32)
             .fontColor(DesignTokens.textOnPrimary)
         }
@@ -75,7 +77,7 @@ export struct ProfilePage {
         .justifyContent(FlexAlign.Center)
       }
 
-      Text(this.nickname)
+      Text(this.viewModel.nickname)
         .fontSize(DesignTokens.font20)
         .fontWeight(FontWeight.Bold)
         .fontColor(DesignTokens.textPrimary)
@@ -87,53 +89,6 @@ export struct ProfilePage {
     .backgroundColor(DesignTokens.bgCard)
     .borderRadius(DesignTokens.radius24)
     .alignItems(HorizontalAlign.Center)
-  }
-
-  private showToast(message: string): void {
-    try {
-      this.getUIContext().getPromptAction().showToast({ message: message });
-    } catch (e) {
-      console.warn('ProfilePage showToast failed: ' + (e instanceof Error ? e.message : 'unknown'));
-    }
-  }
-
-  private isValidTime(value: string): boolean {
-    const regex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
-    return regex.test(value);
-  }
-
-  private async saveReminderSettings(): Promise<void> {
-    if (!this.isValidTime(this.reportTime)) {
-      this.showToast('时间格式不正确，请使用 HH:MM');
-      return;
-    }
-
-    this.isSavingReminder = true;
-    try {
-      AppStore.getInstance().updateUserProfile({
-        reportEnabled: this.reportEnabled,
-        reportReminderTime: this.reportTime
-      });
-
-      await this.reportScheduler.ensureReminderEnabled(
-        this.reportEnabled,
-        this.reportTime,
-        BUNDLE_NAME,
-        ENTRY_ABILITY_NAME
-      );
-
-      this.showToast(this.reportEnabled ? '已保存并开启每日提醒' : '已关闭每日提醒');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '保存失败';
-      console.error('ProfilePage saveReminderSettings failed: ' + message);
-      this.showToast('提醒设置保存失败：' + message);
-    } finally {
-      this.isSavingReminder = false;
-    }
-  }
-
-  private navigateToReport(): void {
-    this.navPath.pushPathByName('DailyReportPage', null);
   }
 
   @Builder
@@ -152,10 +107,10 @@ export struct ProfilePage {
           .fontColor(DesignTokens.textPrimary)
           .layoutWeight(1)
 
-        Toggle({ type: ToggleType.Switch, isOn: this.reportEnabled })
+        Toggle({ type: ToggleType.Switch, isOn: this.viewModel.reportEnabled })
           .selectedColor(DesignTokens.primary)
           .onChange((isOn: boolean) => {
-            this.reportEnabled = isOn;
+            this.viewModel.reportEnabled = isOn;
           })
       }
       .width('100%')
@@ -167,7 +122,7 @@ export struct ProfilePage {
           .fontColor(DesignTokens.textPrimary)
           .layoutWeight(1)
 
-        TextInput({ text: this.reportTime, placeholder: 'HH:MM' })
+        TextInput({ text: this.viewModel.reportTime, placeholder: 'HH:MM' })
           .width(80)
           .height(36)
           .fontSize(DesignTokens.font14)
@@ -175,19 +130,19 @@ export struct ProfilePage {
           .backgroundColor(DesignTokens.bgInput)
           .borderRadius(DesignTokens.radius8)
           .onChange((value: string) => {
-            this.reportTime = value;
+            this.viewModel.reportTime = value;
           })
       }
       .width('100%')
       .margin({ bottom: DesignTokens.spacing16 })
 
-      Button(this.isSavingReminder ? '保存中...' : '保存提醒设置')
+      Button(this.viewModel.isSavingReminder ? '保存中...' : '保存提醒设置')
         .width('100%')
         .height(48)
         .backgroundColor(DesignTokens.primary)
         .fontColor(DesignTokens.textOnPrimary)
         .borderRadius(DesignTokens.radiusFull)
-        .enabled(!this.isSavingReminder)
+        .enabled(!this.viewModel.isSavingReminder)
         .onClick(() => this.saveReminderSettings())
     }
     .width('100%')
@@ -229,14 +184,14 @@ export struct ProfilePage {
 
   @Builder
   LogoutButton() {
-    Button(this.isLoggingOut ? '退出中...' : '退出登录')
+    Button(this.viewModel.isLoggingOut ? '退出中...' : '退出登录')
       .width('100%')
       .height(48)
       .backgroundColor(DesignTokens.danger)
       .fontColor(DesignTokens.textOnPrimary)
       .borderRadius(DesignTokens.radiusFull)
       .margin({ top: DesignTokens.spacing32 })
-      .enabled(!this.isLoggingOut)
+      .enabled(!this.viewModel.isLoggingOut)
       .onClick(() => this.logout())
   }
 
@@ -267,6 +222,7 @@ export struct ProfilePage {
       .height('100%')
     }
     .hideTitleBar(true)
+    .onShown(() => this.onShown())
     .onBackPressed(() => {
       this.navPath.pop();
       return true;

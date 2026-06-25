@@ -1,20 +1,12 @@
 import { DailyReport, Exercise } from '../model/Types';
-import { ReportService } from '../service/ReportService';
-import { AppStore } from '../store/AppStore';
+import { DailyReportViewModel } from '../viewmodel/DailyReportViewModel';
 import { DesignTokens } from '../components/DesignTokens';
 import { BottomNav } from '../components/BottomNav';
 
 @ComponentV2
 export struct DailyReportPage {
-  @Local report: DailyReport | null = null;
-  @Local history: DailyReport[] = [];
-  @Local isLoading: boolean = true;
-  @Local errorMessage: string = '';
-  @Local selectedExerciseId: string = '';
-  @Local showAnswer: boolean = false;
+  @Local viewModel: DailyReportViewModel = new DailyReportViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
-
-  private reportService: ReportService = new ReportService();
   private isInitializing: boolean = false;
 
   async aboutToAppear() {
@@ -25,88 +17,36 @@ export struct DailyReportPage {
     await this.initialize();
   }
 
-  private async initReportService(): Promise<void> {
-    const context = this.getUIContext().getHostContext();
-    if (context === undefined) {
-      throw new Error('无法获取应用上下文');
-    }
-    await this.reportService.init(context);
-  }
-
   private async initialize(): Promise<void> {
     if (this.isInitializing) {
       return;
     }
     this.isInitializing = true;
+    this.viewModel.errorMessage = '';
     try {
-      await this.initReportService();
-      await this.loadTodayReport();
-      await this.loadHistory();
+      const context = this.getUIContext().getHostContext();
+      if (context === undefined) {
+        throw new Error('无法获取应用上下文');
+      }
+      await this.viewModel.init(context);
+      await this.viewModel.initialize();
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载报告失败';
-      console.error('DailyReportPage init failed: ' + message);
-      this.errorMessage = message;
-      this.isLoading = false;
+      console.error('DailyReportPage initialize failed: ' + message);
+      this.viewModel.errorMessage = message;
+      this.viewModel.isLoading = false;
     } finally {
       this.isInitializing = false;
     }
   }
 
   private async retryLoad(): Promise<void> {
-    await this.initialize();
-  }
-
-  private async loadTodayReport(): Promise<void> {
-    this.isLoading = true;
-    this.errorMessage = '';
-    try {
-      const report = await this.reportService.generateReport(new Date());
-      this.report = report;
-      AppStore.getInstance().setCurrentReport(report);
-      if (report.status === 'generated') {
-        await this.reportService.markAsViewed(report.id);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '生成报告失败';
-      console.error('DailyReportPage loadTodayReport failed: ' + message);
-      this.errorMessage = message;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  private async loadHistory(): Promise<void> {
-    try {
-      this.history = await this.reportService.getRecentReports(30);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '加载历史失败';
-      console.error('DailyReportPage loadHistory failed: ' + message);
-    }
-  }
-
-  private selectReport(report: DailyReport): void {
-    this.report = report;
-    this.selectedExerciseId = '';
-    this.showAnswer = false;
-  }
-
-  private backToToday(): void {
-    this.loadTodayReport();
-    this.selectedExerciseId = '';
-    this.showAnswer = false;
+    this.viewModel.errorMessage = '';
+    await this.viewModel.initialize();
   }
 
   private navigateBack(): void {
     this.navPath.pop();
-  }
-
-  private onExerciseClick(exercise: Exercise): void {
-    if (this.selectedExerciseId === exercise.id) {
-      this.showAnswer = !this.showAnswer;
-    } else {
-      this.selectedExerciseId = exercise.id;
-      this.showAnswer = true;
-    }
   }
 
   @Builder
@@ -126,24 +66,16 @@ export struct DailyReportPage {
         .fontColor(DesignTokens.textPrimary)
         .layoutWeight(1)
 
-      if (this.report !== null && this.report.date !== this.todayKey()) {
+      if (this.viewModel.report !== null && this.viewModel.report.date !== this.viewModel.todayKey()) {
         Text('今天')
           .fontSize(DesignTokens.font14)
           .fontColor(DesignTokens.primary)
-          .onClick(() => this.backToToday())
+          .onClick(() => this.viewModel.backToToday())
       }
     }
     .width('100%')
     .padding({ left: DesignTokens.spacing8, right: DesignTokens.spacing16, top: 8, bottom: 8 })
     .alignItems(VerticalAlign.Center)
-  }
-
-  private todayKey(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 
   @Builder
@@ -170,20 +102,20 @@ export struct DailyReportPage {
   @Builder
   StatsGrid() {
     Column() {
-      Text(this.report?.date ?? this.todayKey())
+      Text(this.viewModel.report?.date ?? this.viewModel.todayKey())
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .margin({ bottom: DesignTokens.spacing12 })
 
       Row() {
-        this.StatCard('新词', `${this.report?.newWordsCount ?? 0}`, DesignTokens.success, { right: DesignTokens.spacing12 })
-        this.StatCard('复习', `${this.report?.reviewedCount ?? 0}`, DesignTokens.primary)
+        this.StatCard('新词', `${this.viewModel.report?.newWordsCount ?? 0}`, DesignTokens.success, { right: DesignTokens.spacing12 })
+        this.StatCard('复习', `${this.viewModel.report?.reviewedCount ?? 0}`, DesignTokens.primary)
       }
       .width('100%')
 
       Row() {
-        this.StatCard('连续', `${this.report?.streakDays ?? 0} 天`, DesignTokens.warning, { right: DesignTokens.spacing12 })
-        this.StatCard('时长', `${this.report?.studyMinutes ?? 0} 分`, DesignTokens.danger)
+        this.StatCard('连续', `${this.viewModel.report?.streakDays ?? 0} 天`, DesignTokens.warning, { right: DesignTokens.spacing12 })
+        this.StatCard('时长', `${this.viewModel.report?.studyMinutes ?? 0} 分`, DesignTokens.danger)
       }
       .width('100%')
       .margin({ top: DesignTokens.spacing12 })
@@ -203,7 +135,7 @@ export struct DailyReportPage {
         .fontColor(DesignTokens.textPrimary)
         .margin({ bottom: DesignTokens.spacing8 })
 
-      Text(this.report?.suggestion ?? '坚持学习，每天进步一点点～')
+      Text(this.viewModel.report?.suggestion ?? '坚持学习，每天进步一点点～')
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .width('100%')
@@ -240,10 +172,12 @@ export struct DailyReportPage {
         .width('100%')
 
       Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        if (this.report !== null && this.report.highFrequencyWords.length > 0) {
-          ForEach(this.report.highFrequencyWords, (word: string) => {
-            this.WordChip(word)
-          }, (word: string) => word)
+        if (this.viewModel.report !== null && this.viewModel.report.highFrequencyWords.length > 0) {
+          Repeat<string>(this.viewModel.report.highFrequencyWords)
+            .each((obj: RepeatItem<string>) => {
+              this.WordChip(obj.item)
+            })
+            .key((item: string) => item)
         } else {
           Text('今日还没有高频词汇，快去记录新单词吧～')
             .fontSize(DesignTokens.font14)
@@ -270,14 +204,16 @@ export struct DailyReportPage {
 
       if (exercise.options !== undefined && exercise.options.length > 0) {
         Column() {
-          ForEach(exercise.options, (option: string) => {
-            Text(option)
-              .fontSize(DesignTokens.font14)
-              .fontColor(DesignTokens.textSecondary)
-              .width('100%')
-              .padding({ top: 8, bottom: 8 })
-              .textAlign(TextAlign.Start)
-          }, (option: string, index: number) => `${option}-${index}`)
+          Repeat<string>(exercise.options)
+            .each((obj: RepeatItem<string>) => {
+              Text(obj.item)
+                .fontSize(DesignTokens.font14)
+                .fontColor(DesignTokens.textSecondary)
+                .width('100%')
+                .padding({ top: 8, bottom: 8 })
+                .textAlign(TextAlign.Start)
+            })
+            .key((item: string, index: number) => `${item}-${index}`)
         }
         .width('100%')
         .margin({ top: DesignTokens.spacing8 })
@@ -286,7 +222,7 @@ export struct DailyReportPage {
         .borderRadius(DesignTokens.radius8)
       }
 
-      if (this.selectedExerciseId === exercise.id && this.showAnswer) {
+      if (this.viewModel.selectedExerciseId === exercise.id && this.viewModel.showAnswer) {
         Column() {
           Text('正确答案：' + exercise.correctAnswer)
             .fontSize(DesignTokens.font14)
@@ -316,7 +252,7 @@ export struct DailyReportPage {
     .backgroundColor(DesignTokens.bgCard)
     .borderRadius(DesignTokens.radius16)
     .alignItems(HorizontalAlign.Start)
-    .onClick(() => this.onExerciseClick(exercise))
+    .onClick(() => this.viewModel.onExerciseClick(exercise))
   }
 
   @Builder
@@ -329,10 +265,12 @@ export struct DailyReportPage {
         .margin({ bottom: DesignTokens.spacing12 })
         .width('100%')
 
-      if (this.report !== null && this.report.exercises.length > 0) {
-        ForEach(this.report.exercises, (exercise: Exercise) => {
-          this.ExerciseCard(exercise)
-        }, (exercise: Exercise) => exercise.id)
+      if (this.viewModel.report !== null && this.viewModel.report.exercises.length > 0) {
+        Repeat<Exercise>(this.viewModel.report.exercises)
+          .each((obj: RepeatItem<Exercise>) => {
+            this.ExerciseCard(obj.item)
+          })
+          .key((item: Exercise) => item.id)
       } else {
         Text('今日还没有生成练习，记录单词后会自动生成哦～')
           .fontSize(DesignTokens.font14)
@@ -374,7 +312,7 @@ export struct DailyReportPage {
     .padding(DesignTokens.spacing12)
     .backgroundColor(DesignTokens.bgCard)
     .borderRadius(DesignTokens.radius12)
-    .onClick(() => this.selectReport(report))
+    .onClick(() => this.viewModel.selectReport(report))
   }
 
   @Builder
@@ -387,10 +325,12 @@ export struct DailyReportPage {
         .margin({ bottom: DesignTokens.spacing12 })
         .width('100%')
 
-      if (this.history.length > 0) {
-        ForEach(this.history, (report: DailyReport) => {
-          this.HistoryItem(report)
-        }, (report: DailyReport) => report.id)
+      if (this.viewModel.history.length > 0) {
+        Repeat<DailyReport>(this.viewModel.history)
+          .each((obj: RepeatItem<DailyReport>) => {
+            this.HistoryItem(obj.item)
+          })
+          .key((item: DailyReport) => item.id)
       } else {
         Text('暂无历史报告')
           .fontSize(DesignTokens.font14)
@@ -432,7 +372,7 @@ export struct DailyReportPage {
         .fontSize(DesignTokens.font16)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.danger)
-      Text(this.errorMessage)
+      Text(this.viewModel.errorMessage)
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .margin({ top: 8 })
@@ -457,9 +397,9 @@ export struct DailyReportPage {
         Column() {
           this.Header()
 
-          if (this.isLoading) {
+          if (this.viewModel.isLoading) {
             this.LoadingState()
-          } else if (this.errorMessage.length > 0) {
+          } else if (this.viewModel.errorMessage.length > 0) {
             this.ErrorState()
           } else {
             List() {

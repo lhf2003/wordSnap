@@ -155,9 +155,11 @@ export struct BottomNav {
 
   build() {
     Row() {
-      ForEach(this.items, (item: NavItem, index: number) => {
-        this.NavItemContent(item, index, index === this.activeIndex)
-      }, (item: NavItem) => item.name)
+      Repeat<NavItem>(this.items)
+        .each((obj: RepeatItem<NavItem>) => {
+          this.NavItemContent(obj.item, obj.index, obj.index === this.activeIndex)
+        })
+        .key((item: NavItem) => item.name)
     }
     .width('84%')
     .height(64)

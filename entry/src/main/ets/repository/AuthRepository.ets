@@ -63,11 +63,11 @@ export class AuthRepository {
     if (typeof expiresAt !== 'number' || expiresAt <= 0) {
       return null;
     }
-    const token: AuthToken = {
+    const token: AuthToken = new AuthToken({
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresAt: expiresAt
-    };
+    });
     return token;
   }
 

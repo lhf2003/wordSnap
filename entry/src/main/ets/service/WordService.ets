@@ -39,7 +39,7 @@ export class WordService {
     const translations = aiDetail?.translations ?? params.translation ?? ['暂无释义'];
     const firstPos = aiDetail?.partOfSpeech?.[0];
 
-    const wordRecord: WordRecord = {
+    const wordRecord = new WordRecord({
       id: 'w-' + now + '-' + entropy,
       word: params.word.trim(),
       translation: translations,
@@ -58,7 +58,7 @@ export class WordService {
       examples: aiDetail?.examples ?? [],
       isArchived: false,
       isFavorite: false
-    };
+    });
 
     await this.wordRepo.insert(wordRecord);
     return wordRecord;
@@ -98,7 +98,7 @@ export class WordService {
       throw new Error('Word not found: ' + word.id);
     }
 
-    const normalized: WordRecord = {
+    const normalized = new WordRecord({
       id: word.id,
       word: word.word.trim(),
       translation: word.translation.map((t: string) => t.trim()).filter((t: string) => t.length > 0),
@@ -119,7 +119,7 @@ export class WordService {
       examples: word.examples,
       isArchived: word.isArchived,
       isFavorite: word.isFavorite
-    };
+    });
 
     if (normalized.word.length === 0) {
       throw new Error('单词不能为空');

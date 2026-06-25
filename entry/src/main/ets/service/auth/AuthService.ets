@@ -46,11 +46,11 @@ export class AuthService {
       response = await this.callBackend(authorizationCode);
     }
     const expiresAt: number = Date.now() + response.expiresIn * 1000;
-    const token: AuthToken = {
+    const token: AuthToken = new AuthToken({
       accessToken: response.accessToken,
       refreshToken: response.refreshToken,
       expiresAt: expiresAt
-    };
+    });
     await this.authRepo.saveToken(token);
     this.updateAppStore(response.user, token);
   }

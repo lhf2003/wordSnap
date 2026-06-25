@@ -295,11 +295,10 @@ export class WordRepository implements IWordRepository {
     if (!this.store) throw new Error('Repository not initialized');
 
     const predicates = new relationalStore.RdbPredicates('word_records');
-    const resultSet = await this.store.query(predicates, ['COUNT(*) as count']);
-    if (resultSet.goToNextRow()) {
-      return resultSet.getLong(resultSet.getColumnIndex('count'));
-    }
-    return 0;
+    const resultSet = await this.store.query(predicates, ['id']);
+    const count = resultSet.rowCount;
+    resultSet.close();
+    return count;
   }
 
   private mapResultSet(resultSet: relationalStore.ResultSet): WordRecord[] {
@@ -388,7 +387,7 @@ export class WordRepository implements IWordRepository {
       return val === 0 ? undefined : val;
     };
 
-    return {
+    return new WordRecord({
       id: getString('id'),
       word: getString('word'),
       translation: this.parseStringArray(getString('translation')),
@@ -409,6 +408,6 @@ export class WordRepository implements IWordRepository {
       examples: this.parseExamples(getString('examples')),
       isArchived: getLong('is_archived') === 1,
       isFavorite: getLong('is_favorite') === 1
-    };
+    });
   }
 }

@@ -1,50 +1,15 @@
-import { WordRecord, ExampleSentence } from '../model/Types';
-import { WordService } from '../service/WordService';
+import { WordRecord, ExampleItem } from '../model/Types';
+import { WordDetailViewModel, WordEditFields } from '../viewmodel/WordDetailViewModel';
 import { DesignTokens } from '../components/DesignTokens';
-import { WordDetailEditView, WordEditFields } from '../components/WordDetailEditView';
-
-interface WordToggleFields {
-  isArchived?: boolean;
-  isFavorite?: boolean;
-}
+import { WordDetailEditView } from '../components/WordDetailEditView';
 
 @ComponentV2
 export struct WordDetailPage {
-  private wordService: WordService = new WordService();
-  @Local wordId: string = '';
-  @Local word: WordRecord | null = null;
-  @Local isLoading: boolean = true;
-  @Local errorMessage: string = '';
-  @Local isEditing: boolean = false;
-  @Local editedWord: WordRecord | null = null;
-  @Local isSaving: boolean = false;
-  @Local hasChanged: boolean = false;
+  @Local viewModel: WordDetailViewModel = new WordDetailViewModel();
   @Consumer('navPath') navPath: NavPathStack = new NavPathStack();
 
-  private async initialize(): Promise<void> {
-    try {
-      const context = this.getUIContext().getHostContext();
-      if (context === undefined) {
-        throw new Error('无法获取应用上下文');
-      }
-      await this.wordService.init(context);
-
-      const word = await this.wordService.getWordById(this.wordId);
-      if (!word) {
-        throw new Error('单词不存在');
-      }
-      this.word = word;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '加载失败';
-      console.error('Failed to load word detail: ' + message);
-      this.errorMessage = message;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
   private goBack(): void {
-    if (this.hasChanged) {
+    if (this.viewModel.hasChanged) {
       console.info('WordDetailPage goBack with refresh');
       this.navPath.pop({ refresh: true });
     } else {
@@ -53,69 +18,36 @@ export struct WordDetailPage {
     }
   }
 
-  private cloneWord(source: WordRecord): WordRecord {
-    return {
-      id: source.id,
-      word: source.word,
-      translation: source.translation.slice(),
-      partOfSpeech: source.partOfSpeech,
-      exampleSentence: source.exampleSentence,
-      exampleTranslation: source.exampleTranslation,
-      phoneticUK: source.phoneticUK,
-      phoneticUS: source.phoneticUS,
-      source: source.source,
-      originalQuery: source.originalQuery,
-      tags: source.tags.slice(),
-      proficiency: source.proficiency,
-      reviewCount: source.reviewCount,
-      createdAt: source.createdAt,
-      lastReviewedAt: source.lastReviewedAt,
-      imageUri: source.imageUri,
-      definition: source.definition,
-      examples: source.examples ? source.examples.map((e: ExampleSentence): ExampleSentence => {
-        const item: ExampleSentence = { en: e.en, zh: e.zh };
-        return item;
-      }) : undefined,
-      isArchived: source.isArchived,
-      isFavorite: source.isFavorite
-    };
-  }
-
-  private startEdit(): void {
-    if (this.word === null) {
-      return;
-    }
-    this.editedWord = this.cloneWord(this.word);
-    this.isEditing = true;
-  }
-
-  private cancelEdit(): void {
-    this.isEditing = false;
-    this.editedWord = null;
+  private showUnsavedConfirmDialog(): void {
+    this.getUIContext().showAlertDialog({
+      title: '修改未保存',
+      message: '关闭后会丢失当前进度，是否继续？',
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '继续',
+        style: DialogButtonStyle.HIGHLIGHT,
+        action: () => {
+          this.viewModel.cancelEdit();
+        }
+      }
+    });
   }
 
   private async saveEdit(): Promise<void> {
-    if (this.editedWord === null || this.isSaving) {
-      return;
-    }
-    this.isSaving = true;
-    try {
-      await this.wordService.updateWord(this.editedWord);
-      this.word = this.cloneWord(this.editedWord);
-      this.hasChanged = true;
-      console.info('WordDetailPage saveEdit success, hasChanged=true');
-      this.isEditing = false;
-      this.editedWord = null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '保存失败';
-      console.error('Failed to save word: ' + message);
-    } finally {
-      this.isSaving = false;
+    const success = await this.viewModel.saveEdit();
+    if (!success) {
+      this.getUIContext().getPromptAction().showToast({ message: '保存失败' });
     }
   }
 
   private showDeleteConfirmDialog(): void {
-    if (this.word === null) {
+    if (this.viewModel.word === null) {
       return;
     }
     this.getUIContext().showAlertDialog({
@@ -139,101 +71,20 @@ export struct WordDetailPage {
   }
 
   private async confirmDelete(): Promise<void> {
-    if (this.word === null) {
-      return;
-    }
-    try {
-      await this.wordService.deleteWord(this.word.id);
-      this.hasChanged = true;
+    const success = await this.viewModel.deleteWord();
+    if (success) {
       this.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '删除失败';
-      console.error('Failed to delete word: ' + message);
+    } else {
+      this.getUIContext().getPromptAction().showToast({ message: '删除失败' });
     }
   }
 
   private updateEditedWord(updates: WordEditFields): void {
-    if (this.editedWord === null) {
-      return;
-    }
-    const current = this.editedWord;
-    this.editedWord = {
-      id: current.id,
-      word: updates.word !== undefined ? updates.word : current.word,
-      translation: updates.translation !== undefined ? updates.translation : current.translation,
-      partOfSpeech: current.partOfSpeech,
-      exampleSentence: updates.exampleSentence !== undefined ? updates.exampleSentence : current.exampleSentence,
-      exampleTranslation: updates.exampleTranslation !== undefined ? updates.exampleTranslation : current.exampleTranslation,
-      phoneticUK: updates.phoneticUK !== undefined ? updates.phoneticUK : current.phoneticUK,
-      phoneticUS: updates.phoneticUS !== undefined ? updates.phoneticUS : current.phoneticUS,
-      source: current.source,
-      originalQuery: current.originalQuery,
-      tags: updates.tags !== undefined ? updates.tags : current.tags,
-      proficiency: current.proficiency,
-      reviewCount: current.reviewCount,
-      createdAt: current.createdAt,
-      lastReviewedAt: current.lastReviewedAt,
-      imageUri: current.imageUri,
-      definition: updates.definition !== undefined ? updates.definition : current.definition,
-      examples: current.examples,
-      isArchived: current.isArchived,
-      isFavorite: current.isFavorite
-    };
-  }
-
-  private copyWord(updates: WordToggleFields): WordRecord | null {
-    if (!this.word) {
-      return null;
-    }
-    const w = this.word;
-    return {
-      id: w.id,
-      word: w.word,
-      translation: w.translation.slice(),
-      partOfSpeech: w.partOfSpeech,
-      exampleSentence: w.exampleSentence,
-      exampleTranslation: w.exampleTranslation,
-      phoneticUK: w.phoneticUK,
-      phoneticUS: w.phoneticUS,
-      source: w.source,
-      originalQuery: w.originalQuery,
-      tags: w.tags.slice(),
-      proficiency: w.proficiency,
-      reviewCount: w.reviewCount,
-      createdAt: w.createdAt,
-      lastReviewedAt: w.lastReviewedAt,
-      imageUri: w.imageUri,
-      definition: w.definition,
-      examples: w.examples,
-      isArchived: updates.isArchived ?? w.isArchived,
-      isFavorite: updates.isFavorite ?? w.isFavorite
-    };
-  }
-
-  private async toggleFavorite(): Promise<void> {
-    if (!this.word) return;
-    try {
-      const next = await this.wordService.toggleFavorite(this.word.id);
-      this.word = this.copyWord({ isFavorite: next });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '操作失败';
-      console.error('Failed to toggle favorite: ' + message);
-    }
-  }
-
-  private async toggleArchived(): Promise<void> {
-    if (!this.word) return;
-    try {
-      const next = await this.wordService.toggleArchived(this.word.id);
-      this.word = this.copyWord({ isArchived: next });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '操作失败';
-      console.error('Failed to toggle archived: ' + message);
-    }
+    this.viewModel.updateEditedWord(updates);
   }
 
   private statusColor(): ResourceColor {
-    const proficiency = this.word?.proficiency ?? 0;
+    const proficiency = this.viewModel.word?.proficiency ?? 0;
     if (proficiency >= 5) {
       return DesignTokens.success;
     }
@@ -244,26 +95,27 @@ export struct WordDetailPage {
   }
 
   private phoneticText(): string {
-    if (!this.word) return '';
-    return this.word.phoneticUS ?? this.word.phoneticUK ?? '';
+    if (!this.viewModel.word) return '';
+    return this.viewModel.word.phoneticUS ?? this.viewModel.word.phoneticUK ?? '';
   }
 
-  private examples(): ExampleSentence[] {
-    if (!this.word) return [];
-    if (this.word.examples && this.word.examples.length > 0) {
-      return this.word.examples;
+  private examples(): ExampleItem[] {
+    if (!this.viewModel.word) return [];
+    if (this.viewModel.word.examples && this.viewModel.word.examples.length > 0) {
+      return this.viewModel.word.examples;
     }
-    if (this.word.exampleSentence) {
-      return [{
-        en: this.word.exampleSentence,
-        zh: this.word.exampleTranslation ?? ''
-      }];
+    if (this.viewModel.word.exampleSentence) {
+      const item: ExampleItem = {
+        en: this.viewModel.word.exampleSentence,
+        zh: this.viewModel.word.exampleTranslation ?? ''
+      };
+      return [item];
     }
     return [];
   }
 
   private progressSegments(): number[] {
-    const proficiency = this.word?.proficiency ?? 0;
+    const proficiency = this.viewModel.word?.proficiency ?? 0;
     const filled = Math.min(5, Math.max(0, proficiency));
     const segments: number[] = [];
     for (let i = 0; i < 5; i++) {
@@ -323,7 +175,7 @@ export struct WordDetailPage {
   MoreMenu() {
     Menu() {
       MenuItem({ content: '编辑' })
-        .onClick(() => this.startEdit())
+        .onClick(() => this.viewModel.startEdit())
       MenuItem({ content: '删除' })
         .onClick(() => this.showDeleteConfirmDialog())
     }
@@ -342,7 +194,7 @@ export struct WordDetailPage {
 
       Blank().layoutWeight(1)
 
-      if (!this.isEditing) {
+      if (!this.viewModel.isEditing) {
         Button() {
           this.MoreIcon()
         }
@@ -359,7 +211,7 @@ export struct WordDetailPage {
   @Builder
   WordHeader() {
     Column() {
-      Text(this.word?.word ?? '')
+      Text(this.viewModel.word?.word ?? '')
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .fontColor(DesignTokens.textPrimary)
@@ -374,14 +226,16 @@ export struct WordDetailPage {
       }
 
       Row({ space: DesignTokens.spacing8 }) {
-        ForEach(this.word?.tags ?? [], (tag: string) => {
-          Text(tag)
-            .fontSize(DesignTokens.font12)
-            .fontColor(DesignTokens.textSecondary)
-            .backgroundColor(DesignTokens.neutralSurface)
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .borderRadius(DesignTokens.radiusFull)
-        }, (tag: string) => tag)
+        Repeat<string>(this.viewModel.word?.tags ?? [])
+          .each((obj: RepeatItem<string>) => {
+            Text(obj.item)
+              .fontSize(DesignTokens.font12)
+              .fontColor(DesignTokens.textSecondary)
+              .backgroundColor(DesignTokens.neutralSurface)
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .borderRadius(DesignTokens.radiusFull)
+          })
+          .key((item: string) => item)
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -402,7 +256,7 @@ export struct WordDetailPage {
         .width('100%')
         .margin({ bottom: DesignTokens.spacing12 })
 
-      Text(this.word?.definition ?? this.word?.translation.join('；') ?? '暂无释义')
+      Text(this.viewModel.word?.definition ?? this.viewModel.word?.translation.join('；') ?? '暂无释义')
         .fontSize(DesignTokens.font16)
         .fontColor(DesignTokens.textPrimary)
         .lineHeight(24)
@@ -415,7 +269,7 @@ export struct WordDetailPage {
     .borderRadius(DesignTokens.radius24)
   }
   @Builder
-  ExampleItem(example: ExampleSentence) {
+  ExampleItem(example: ExampleItem) {
     Column() {
       Text(`"${example.en}"`)
         .fontSize(DesignTokens.font14)
@@ -445,9 +299,11 @@ export struct WordDetailPage {
         .width('100%')
         .margin({ bottom: DesignTokens.spacing12 })
 
-      ForEach(this.examples(), (example: ExampleSentence, index: number) => {
-        this.ExampleItem(example)
-      }, (example: ExampleSentence, index: number) => index.toString())
+      Repeat<ExampleItem>(this.examples())
+        .each((obj: RepeatItem<ExampleItem>) => {
+          this.ExampleItem(obj.item)
+        })
+        .key((item: ExampleItem, index: number) => index.toString())
     }
     .width('100%')
     .padding(DesignTokens.spacing20)
@@ -467,13 +323,15 @@ export struct WordDetailPage {
         .margin({ bottom: DesignTokens.spacing12 })
 
       Row({ space: DesignTokens.spacing8 }) {
-        ForEach(this.progressSegments(), (filled: number, index: number) => {
-          Row()
-            .layoutWeight(1)
-            .height(6)
-            .backgroundColor(filled === 1 ? this.statusColor() : DesignTokens.neutralSurfaceMedium)
-            .borderRadius(DesignTokens.radiusFull)
-        }, (filled: number, index: number) => index.toString())
+        Repeat<number>(this.progressSegments())
+          .each((obj: RepeatItem<number>) => {
+            Row()
+              .layoutWeight(1)
+              .height(6)
+              .backgroundColor(obj.item === 1 ? this.statusColor() : DesignTokens.neutralSurfaceMedium)
+              .borderRadius(DesignTokens.radiusFull)
+          })
+          .key((item: number, index: number) => index.toString())
       }
       .width('100%')
     }
@@ -517,25 +375,25 @@ export struct WordDetailPage {
     Row({ space: DesignTokens.spacing12 }) {
       Button() {
         Row({ space: DesignTokens.spacing8 }) {
-          this.StarIcon(this.word?.isFavorite ?? false)
+          this.StarIcon(this.viewModel.word?.isFavorite ?? false)
 
-          Text(this.word?.isFavorite ? 'Favorited' : 'Mark Review')
+          Text(this.viewModel.word?.isFavorite ? 'Favorited' : 'Mark Review')
             .fontSize(DesignTokens.font14)
             .fontWeight(FontWeight.Medium)
-            .fontColor(this.word?.isFavorite ? DesignTokens.textOnPrimary : DesignTokens.textPrimary)
+            .fontColor(this.viewModel.word?.isFavorite ? DesignTokens.textOnPrimary : DesignTokens.textPrimary)
         }
       }
       .layoutWeight(1)
       .height(48)
-      .backgroundColor(this.word?.isFavorite ? DesignTokens.warning : DesignTokens.neutralSurface)
+      .backgroundColor(this.viewModel.word?.isFavorite ? DesignTokens.warning : DesignTokens.neutralSurface)
       .borderRadius(DesignTokens.radiusFull)
-      .onClick(() => this.toggleFavorite())
+      .onClick(() => this.viewModel.toggleFavorite())
 
       Button() {
         Row({ space: DesignTokens.spacing8 }) {
           this.ArchiveIcon()
 
-          Text(this.word?.isArchived ? 'Archived' : 'Archive Word')
+          Text(this.viewModel.word?.isArchived ? 'Archived' : 'Archive Word')
             .fontSize(DesignTokens.font14)
             .fontWeight(FontWeight.Medium)
             .fontColor(DesignTokens.textOnPrimary)
@@ -545,7 +403,7 @@ export struct WordDetailPage {
       .height(48)
       .backgroundColor(DesignTokens.primary)
       .borderRadius(DesignTokens.radiusFull)
-      .onClick(() => this.toggleArchived())
+      .onClick(() => this.viewModel.toggleArchived())
     }
     .width('100%')
     .padding(DesignTokens.spacing16)
@@ -561,8 +419,8 @@ export struct WordDetailPage {
         .fontColor(DesignTokens.textPrimary)
         .backgroundColor(DesignTokens.neutralSurface)
         .borderRadius(DesignTokens.radiusFull)
-        .enabled(!this.isSaving)
-        .onClick(() => this.cancelEdit())
+        .enabled(!this.viewModel.isSaving)
+        .onClick(() => this.viewModel.cancelEdit())
 
       Button('保存')
         .layoutWeight(1)
@@ -572,7 +430,7 @@ export struct WordDetailPage {
         .fontColor(DesignTokens.textOnPrimary)
         .backgroundColor(DesignTokens.primary)
         .borderRadius(DesignTokens.radiusFull)
-        .enabled(!this.isSaving)
+        .enabled(!this.viewModel.isSaving)
         .onClick(() => this.saveEdit())
     }
     .width('100%')
@@ -598,7 +456,7 @@ export struct WordDetailPage {
         .fontSize(DesignTokens.font18)
         .fontWeight(FontWeight.Medium)
         .fontColor(DesignTokens.danger)
-      Text(this.errorMessage)
+      Text(this.viewModel.errorMessage)
         .fontSize(DesignTokens.font14)
         .fontColor(DesignTokens.textSecondary)
         .margin({ top: 8 })
@@ -622,22 +480,23 @@ export struct WordDetailPage {
   build() {
     NavDestination() {
       Stack({ alignContent: Alignment.Bottom }) {
-        if (this.isLoading) {
+        if (this.viewModel.isLoading) {
           this.LoadingState()
-        } else if (this.errorMessage.length > 0) {
+        } else if (this.viewModel.errorMessage.length > 0) {
           this.ErrorState()
-        } else if (this.word !== null) {
+        } else if (this.viewModel.word !== null) {
           Column() {
             this.TopBar()
 
             Scroll() {
               Column({ space: DesignTokens.spacing16 }) {
-                if (this.isEditing && this.editedWord !== null) {
+                if (this.viewModel.isEditing && this.viewModel.editedWord !== null) {
                   WordDetailEditView({
-                    editedWord: this.editedWord,
+                    editedWord: this.viewModel.editedWord,
                     onFieldChange: (fields: WordEditFields) => this.updateEditedWord(fields),
-                    onCancel: () => this.cancelEdit(),
-                    onSave: () => this.saveEdit()
+                    onCancel: () => this.viewModel.cancelEdit(),
+                    onSave: () => this.saveEdit(),
+                    onBlankClick: () => this.showUnsavedConfirmDialog()
                   })
                 } else {
                   this.WordHeader()
@@ -659,7 +518,7 @@ export struct WordDetailPage {
           .height('100%')
           .backgroundColor(DesignTokens.bgBase)
 
-          if (this.isEditing) {
+          if (this.viewModel.isEditing) {
             this.EditActionButtons()
           } else {
             this.ActionButtons()
@@ -673,23 +532,22 @@ export struct WordDetailPage {
     .hideTitleBar(true)
     .onReady(async (context: NavDestinationContext) => {
       const param = context.pathInfo.param as Record<string, string> | undefined;
-      this.wordId = param?.wordId ?? '';
-      if (this.wordId.length === 0) {
-        this.errorMessage = '缺少单词 ID';
-        this.isLoading = false;
-        return;
+      this.viewModel.wordId = param?.wordId ?? '';
+      const ctx = this.getUIContext().getHostContext();
+      if (ctx !== undefined) {
+        await this.viewModel.init(ctx);
       }
       try {
-        await this.initialize();
+        await this.viewModel.loadWord();
       } catch (err) {
         const message = err instanceof Error ? err.message : '加载失败';
         console.error('WordDetailPage onReady failed: ' + message);
-        this.errorMessage = message;
-        this.isLoading = false;
+        this.viewModel.errorMessage = message;
+        this.viewModel.isLoading = false;
       }
     })
     .onBackPressed(() => {
-      if (this.hasChanged) {
+      if (this.viewModel.hasChanged) {
         this.navPath.pop({ refresh: true });
       } else {
         this.navPath.pop();
